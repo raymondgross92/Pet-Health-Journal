@@ -43,7 +43,8 @@ export default function ReportConfigScreen() {
             const logs = await db.getAllAsync<any>('SELECT * FROM logs WHERE pet_id = ? ORDER BY date DESC', Number(petId));
             const meds = await db.getAllAsync<any>('SELECT * FROM medications WHERE pet_id = ?', Number(petId));
             const vaccs = await db.getAllAsync<any>('SELECT * FROM vaccinations WHERE pet_id = ?', Number(petId));
-            const vets = await db.getAllAsync<any>('SELECT * FROM vets WHERE pet_id = ?', Number(petId));
+            // Vets are global, not per pet
+            const vets = await db.getAllAsync<any>('SELECT * FROM vets');
 
             // JS Filter
             const filteredLogs = logs.filter(l => {
