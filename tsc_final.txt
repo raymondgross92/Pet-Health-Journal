@@ -1,0 +1,10 @@
+app/add-medication.tsx(11,39): error TS2307: Cannot find module '@react-native-community/datetimepicker' or its corresponding type declarations.
+db/PetRepository.ts(3,30): error TS7016: Could not find a declaration file for module 'uuid'. 'C:/Users/Raymond/.gemini/antigravity/scratch/Pet-Health-Journal/node_modules/uuid/dist/index.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/uuid` if it exists or add a new declaration (.d.ts) file containing `declare module 'uuid';`
+db/PetRepository.ts(12,13): error TS2353: Object literal may only specify known properties, and 'created_at' does not exist in type 'Pet'.
+db/PetRepository.ts(23,24): error TS2339: Property 'birth_date' does not exist on type 'Pet'.
+db/PetRepository.ts(24,24): error TS2339: Property 'chip_number' does not exist on type 'Pet'.
+db/PetRepository.ts(26,24): error TS2339: Property 'created_at' does not exist on type 'Pet'.
+db/WeightRepository.ts(2,10): error TS2305: Module '"../types"' has no exported member 'Weight'.
+db/WeightRepository.ts(3,30): error TS7016: Could not find a declaration file for module 'uuid'. 'C:/Users/Raymond/.gemini/antigravity/scratch/Pet-Health-Journal/node_modules/uuid/dist/index.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/uuid` if it exists or add a new declaration (.d.ts) file containing `declare module 'uuid';`

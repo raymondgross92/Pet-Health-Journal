@@ -225,6 +225,7 @@ export default function PetDetailScreen() {
             if (result.canceled) return;
 
             const asset = result.assets[0];
+            // @ts-ignore
             const savedUri = (FileSystem.documentDirectory || '') + (asset.name || 'doc_' + Date.now());
 
             await FileSystem.copyAsync({

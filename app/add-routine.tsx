@@ -85,6 +85,7 @@ export default function AddRoutineScreen() {
                         data: { routineId }
                     },
                     trigger: {
+                        type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
                         hour: hours,
                         minute: minutes,
                         repeats: true,

@@ -6,6 +6,9 @@ export async function setupNotifications() {
             shouldShowAlert: true,
             shouldPlaySound: true,
             shouldSetBadge: false,
+            shouldShowBanner: true,
+            shouldShowList: true,
+            priority: Notifications.AndroidNotificationPriority.HIGH,
         }),
     });
 
@@ -25,6 +28,8 @@ export async function scheduleReminder(title: string, body: string, date: Date) 
             body: body,
             sound: true,
         },
-        trigger: date,
+        trigger: {
+            date: date, // Single date trigger
+        } as any,
     });
 }

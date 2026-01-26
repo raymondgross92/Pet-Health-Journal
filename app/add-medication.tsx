@@ -30,6 +30,7 @@ async function scheduleMedicationReminder(medId: number, title: string, body: st
             data: { medId },
         },
         trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
             hour: hours,
             minute: minutes,
             repeats: true,

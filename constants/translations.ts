@@ -82,6 +82,10 @@ export const translations = {
         calc_result: "Täglicher Bedarf ca.",
         calc_note: "Hinweis: Dies sind Schätzwerte. Der tatsächliche Bedarf kann je nach Rasse und Stoffwechsel variieren.",
         emergency_pass: "Notfall-Pass",
+        add_to_calendar: "In Kalender speichern",
+        event_created: "Termin im Kalender erstellt!",
+        event_error: "Konnte Termin nicht erstellen.",
+        calendar_permission_denied: "Kalender-Zugriff verweigert. Bitte in Einstellungen prüfen.",
     },
     en: {
         welcome: "Welcome back,",
@@ -166,6 +170,10 @@ export const translations = {
         calc_result: "Daily Needs approx.",
         calc_note: "Note: These are estimates. Actual needs may vary by breed and metabolism.",
         emergency_pass: "Emergency Pass",
+        add_to_calendar: "Save to Calendar",
+        event_created: "Event created in Calendar!",
+        event_error: "Could not create event.",
+        calendar_permission_denied: "Calendar access denied. Check settings.",
     }
 };
 

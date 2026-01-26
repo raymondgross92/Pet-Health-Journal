@@ -7,6 +7,10 @@ import { getDb } from '../../db';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import { setupNotifications, scheduleReminder } from '../../lib/notifications';
+import { CalendarService } from '../../services/CalendarService';
+import { useTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../context/LanguageContext';
+import { Switch } from 'react-native';
 
 const LOG_TYPES = ['Tierarzt', 'Impfung', 'Medikament', 'Gewicht', 'Notiz'];
 
@@ -19,6 +23,9 @@ export default function AddLogScreen() {
     const [type, setType] = useState('Notiz');
     const [date, setDate] = useState(new Date().toLocaleDateString('de-DE'));
     const [loading, setLoading] = useState(false);
+    const [addToCalendar, setAddToCalendar] = useState(false);
+    const { theme } = useTheme();
+    const { t } = useLanguage();
 
     useEffect(() => {
         setupNotifications();
@@ -97,6 +104,16 @@ export default function AddLogScreen() {
                 Alert.alert('Erfolg', 'Eintrag gespeichert!');
             }
 
+            // Sync with Calendar if checked
+            if (addToCalendar && reminderDate >= now) {
+                try {
+                    await CalendarService.createEvent(title, reminderDate, description);
+                    // Silent success or optional toast
+                } catch (e) {
+                    Alert.alert(t('error'), t('event_error'));
+                }
+            }
+
             router.back();
         } catch (error) {
             console.error(error);
@@ -169,6 +186,18 @@ export default function AddLogScreen() {
                     onChangeText={setDescription}
                     style={{ height: 100, textAlignVertical: 'top' }}
                 />
+
+                <View className="flex-row items-center justify-between mb-6 p-4 rounded-xl border border-secondary-200 bg-secondary-50">
+                    <View>
+                        <Text className="font-bold text-secondary-900">{t('add_to_calendar')}</Text>
+                        <Text className="text-xs text-secondary-500">Erstellt einen Termin im System-Kalender</Text>
+                    </View>
+                    <Switch
+                        value={addToCalendar}
+                        onValueChange={setAddToCalendar}
+                        trackColor={{ false: "#cbd5e1", true: "#059669" }}
+                    />
+                </View>
 
                 <View className="h-8" />
 

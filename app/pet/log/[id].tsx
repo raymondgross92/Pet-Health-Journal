@@ -7,10 +7,15 @@ import { getDb } from '../../../db';
 import Input from '../../../components/ui/Input';
 import Button from '../../../components/ui/Button';
 import { Log } from '../../../types';
+import { CalendarService } from '../../../services/CalendarService';
+import { useLanguage } from '../../../context/LanguageContext';
+import { useTheme } from '../../../context/ThemeContext';
 
 export default function EditLogScreen() {
     const { id } = useLocalSearchParams();
     const router = useRouter();
+    const { t } = useLanguage();
+    const { theme } = useTheme();
 
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
@@ -83,6 +88,22 @@ export default function EditLogScreen() {
                 }
             ]
         );
+    };
+
+    const handleExportToCalendar = async () => {
+        try {
+            const [day, month, year] = date.split('.');
+            // Note: Month in JS Date is 0-indexed
+            const eventDate = new Date(Number(year), Number(month) - 1, Number(day));
+            // Set time to something reasonable if not specified, e.g. 9 AM
+            eventDate.setHours(9, 0, 0, 0);
+
+            await CalendarService.createEvent(title, eventDate, description);
+            Alert.alert(t('success'), t('event_created'));
+        } catch (e) {
+            console.error(e);
+            Alert.alert(t('error'), t('event_error'));
+        }
     };
 
     const handleSave = async () => {
@@ -202,6 +223,15 @@ export default function EditLogScreen() {
                     onPress={handleSave}
                     disabled={saving}
                 />
+
+                <Button
+                    label={t('add_to_calendar')}
+                    variant="secondary"
+                    className="mt-4"
+                    icon={<Ionicons name="calendar" size={20} color={theme === 'dark' ? '#cbd5e1' : '#475569'} />}
+                    onPress={handleExportToCalendar}
+                />
+
                 <View className="h-8" />
             </ScrollView>
         </SafeAreaView>

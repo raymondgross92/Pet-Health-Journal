@@ -28,7 +28,13 @@
     },
     "plugins": [
       "expo-sqlite",
-      "expo-router"
+      "expo-router",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Allow Pet Health Journal to access your calendar to add appointments and reminders."
+        }
+      ]
     ]
   }
 }
