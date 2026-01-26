@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, Image, TouchableOpacity, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { getDb } from '../db';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
@@ -14,7 +15,8 @@ export default function AddPetScreen() {
     const [breed, setBreed] = useState('');
     const [species, setSpecies] = useState('Hund');
     const [customSpecies, setCustomSpecies] = useState('');
-    const [age, setAge] = useState('');
+    const [dateOfBirth, setDateOfBirth] = useState(new Date());
+    const [showDatePicker, setShowDatePicker] = useState(false);
     const [weight, setWeight] = useState('');
     const [image, setImage] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
@@ -29,6 +31,13 @@ export default function AddPetScreen() {
 
         if (!result.canceled) {
             setImage(result.assets[0].uri);
+        }
+    };
+
+    const onDateChange = (event: any, selectedDate?: Date) => {
+        setShowDatePicker(false);
+        if (selectedDate) {
+            setDateOfBirth(selectedDate);
         }
     };
 
@@ -48,12 +57,18 @@ export default function AddPetScreen() {
             const db = await getDb();
 
             const finalSpecies = species === 'Andere' ? customSpecies : species;
+            // Format format: DD.MM.YYYY
+            const formattedDate = dateOfBirth.toLocaleDateString('de-DE', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
 
             await db.runAsync(
                 'INSERT INTO pets (name, breed, date_of_birth, weight, image_uri, species) VALUES (?, ?, ?, ?, ?, ?)',
                 name,
                 breed,
-                age,
+                formattedDate,
                 weight ? parseFloat(weight) : null,
                 image,
                 finalSpecies
@@ -143,13 +158,19 @@ export default function AddPetScreen() {
                 />
 
                 <View className="flex-row space-x-4">
-                    <Input
-                        label="Alter / Geb."
-                        placeholder="z.B. 3 Jahre"
-                        containerClassName="flex-1"
-                        value={age}
-                        onChangeText={setAge}
-                    />
+                    <View className="flex-1 mb-4">
+                        <Text className="text-secondary-700 font-medium mb-2 ml-1">Geburtsdatum</Text>
+                        <TouchableOpacity
+                            onPress={() => setShowDatePicker(true)}
+                            className="w-full bg-secondary-50 border border-secondary-200 rounded-2xl px-4 py-3.5 flex-row justify-between items-center"
+                        >
+                            <Text className="text-secondary-900">
+                                {dateOfBirth.toLocaleDateString('de-DE')}
+                            </Text>
+                            <Ionicons name="calendar-outline" size={20} color="#64748b" />
+                        </TouchableOpacity>
+                    </View>
+
                     <Input
                         label="Gewicht (kg)"
                         placeholder="z.B. 25"
@@ -159,6 +180,16 @@ export default function AddPetScreen() {
                         onChangeText={setWeight}
                     />
                 </View>
+
+                {showDatePicker && (
+                    <DateTimePicker
+                        value={dateOfBirth}
+                        mode="date"
+                        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                        onChange={onDateChange}
+                        maximumDate={new Date()}
+                    />
+                )}
 
                 <View className="h-8" />
 
