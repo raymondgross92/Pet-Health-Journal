@@ -12,6 +12,7 @@ import { DevSettings } from 'react-native';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { useColorScheme } from 'nativewind';
+import { getDb } from '../db';
 
 export default function SettingsScreen() {
     const router = useRouter();
@@ -131,6 +132,40 @@ export default function SettingsScreen() {
         }
     };
 
+    const exportJson = async () => {
+        try {
+            const db = await getDb();
+            const pets = await db.getAllAsync('SELECT * FROM pets');
+            const logs = await db.getAllAsync('SELECT * FROM logs');
+            const medications = await db.getAllAsync('SELECT * FROM medications');
+            const vets = await db.getAllAsync('SELECT * FROM vets');
+            const expenses = await db.getAllAsync('SELECT * FROM expenses');
+            const routines = await db.getAllAsync('SELECT * FROM routines');
+            const vaccinations = await db.getAllAsync('SELECT * FROM vaccinations');
+
+            const data = {
+                exportDate: new Date().toISOString(),
+                pets,
+                logs,
+                medications,
+                vets,
+                expenses,
+                routines,
+                vaccinations
+            };
+
+            const jsonString = JSON.stringify(data, null, 2);
+            const fileUri = FileSystemLegacy.cacheDirectory + 'pet_health_export.json';
+
+            await FileSystemLegacy.writeAsStringAsync(fileUri, jsonString);
+            await Sharing.shareAsync(fileUri);
+
+        } catch (e) {
+            console.error(e);
+            Alert.alert(t('error'), "JSON Export fehlgeschlagen.");
+        }
+    };
+
     console.log('SettingsScreen Render. Theme:', theme);
 
     return (
@@ -195,6 +230,22 @@ export default function SettingsScreen() {
                                 <View>
                                     <Text className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>{t('backup_db')}</Text>
                                     <Text className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-secondary-500'}`}>{t('backup_desc')}</Text>
+                                </View>
+                            </View>
+                            <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={exportJson}
+                            className={`p-4 flex-row justify-between items-center border-b active:bg-secondary-100 ${theme === 'dark' ? 'border-slate-800 active:bg-slate-800' : 'border-secondary-200'}`}
+                        >
+                            <View className="flex-row items-center space-x-3">
+                                <View className={`h-8 w-8 rounded-full items-center justify-center ${theme === 'dark' ? 'bg-orange-900/30' : 'bg-orange-100'}`}>
+                                    <Ionicons name="document-text-outline" size={16} color={theme === 'dark' ? '#fb923c' : '#c2410c'} />
+                                </View>
+                                <View>
+                                    <Text className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>{t('export_json')}</Text>
+                                    <Text className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-secondary-500'}`}>{t('export_json_desc')}</Text>
                                 </View>
                             </View>
                             <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
