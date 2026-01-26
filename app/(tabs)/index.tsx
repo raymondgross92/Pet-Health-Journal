@@ -123,6 +123,12 @@ export default function Dashboard() {
                             </TouchableOpacity>
                         )}
                         <TouchableOpacity
+                            onPress={() => router.push('/search')}
+                            className="h-10 w-10 bg-primary-100 rounded-full items-center justify-center active:bg-primary-200"
+                        >
+                            <Ionicons name="search" size={20} color="#8b5cf6" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
                             onPress={() => router.push('/settings')}
                             className="h-10 w-10 bg-primary-100 rounded-full items-center justify-center active:bg-primary-200"
                         >
@@ -237,7 +243,7 @@ export default function Dashboard() {
 
                 <View className="h-10" />
             </ScrollView>
-        </SafeAreaView>
+        </SafeAreaView >
     );
 }
 

@@ -1,5 +1,6 @@
-import { Stack } from "expo-router";
-import { useEffect } from "react";
+import { Stack, useRouter } from "expo-router";
+import { useEffect, useState } from "react";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { initDatabase } from "../db";
 import "../global.css";
 import { LanguageProvider } from "../context/LanguageContext";
@@ -10,6 +11,7 @@ import * as SplashScreen from 'expo-splash-screen';
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+    const router = useRouter();
     const [fontsLoaded] = useFonts({
         Nunito_400Regular,
         Nunito_600SemiBold,
@@ -20,6 +22,24 @@ export default function RootLayout() {
     useEffect(() => {
         initDatabase();
     }, []);
+
+    // Check Onboarding Status
+    useEffect(() => {
+        if (!fontsLoaded) return;
+
+        const checkOnboarding = async () => {
+            try {
+                const hasSeen = await AsyncStorage.getItem('hasSeenOnboarding');
+                if (hasSeen !== 'true') {
+                    // Slight delay to ensure navigation is ready
+                    setTimeout(() => router.replace('/onboarding'), 100);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        };
+        checkOnboarding();
+    }, [fontsLoaded]);
 
     useEffect(() => {
         if (fontsLoaded) {

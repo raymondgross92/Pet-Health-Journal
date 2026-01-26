@@ -143,6 +143,12 @@ export default function PetDetailScreen() {
         }
     };
 
+    // Existing inline generateEmergencyPass handles the short "Notfall-Pass"
+    // We add a navigation to the new detailed report screen for the full "Health Report".
+    const goToDetailedReport = () => {
+        router.push({ pathname: '/pet/report', params: { petId: id } });
+    };
+
     const generateEmergencyPass = async () => {
         if (!pet) return;
         try {
@@ -363,7 +369,10 @@ export default function PetDetailScreen() {
                             <Text className={`font-bold text-sm mr-4 ${theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'}`}>{t('impfpass')}</Text>
                         </TouchableOpacity>
                     </View>
-                    <View className="flex-row justify-end mb-4">
+                    <View className="flex-row justify-end mb-4 space-x-3">
+                        <TouchableOpacity onPress={goToDetailedReport} className={`px-3 py-1.5 rounded-lg border ${theme === 'dark' ? 'bg-indigo-900/30 border-indigo-500' : 'bg-indigo-50 border-indigo-100'}`}>
+                            <Text className={`font-bold font-sans text-xs ${theme === 'dark' ? 'text-indigo-300' : 'text-indigo-600'}`}>{t('report_generate') || 'Bericht'}</Text>
+                        </TouchableOpacity>
                         <TouchableOpacity onPress={pickDocument}>
                             <Text className={`font-bold font-sans ${theme === 'dark' ? 'text-primary-400' : 'text-primary-500'}`}>+ {t('doc_upload')}</Text>
                         </TouchableOpacity>
