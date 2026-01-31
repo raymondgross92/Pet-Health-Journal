@@ -391,49 +391,91 @@ export default function PetDetailScreen() {
                     </View>
                 )}
 
+                {/* Action Grid */}
                 <View className="px-5 mb-8">
-                    <View className="flex-row justify-between items-center mb-4">
-                        <Text className={`text-xl font-bold font-sans ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>{t('doc_safe')}</Text>
-                        <TouchableOpacity onPress={() => router.push({ pathname: '/pet/[id]/vaccinations', params: { id } })}>
-                            <Text className={`font-bold text-sm mr-4 ${theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'}`}>{t('impfpass')}</Text>
+                    <Text className={`text-xl font-bold font-sans mb-4 ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>{t('doc_safe')}</Text>
+
+                    <View className="flex-row flex-wrap justify-between">
+                        {/* 1. Impfungen */}
+                        <TouchableOpacity
+                            onPress={() => router.push({ pathname: '/pet/[id]/vaccinations', params: { id } })}
+                            className={`w-[48%] mb-4 p-4 rounded-3xl ${theme === 'dark' ? 'bg-secondary-900' : 'bg-white shadow-sm shadow-stone-200'} border ${theme === 'dark' ? 'border-secondary-800' : 'border-secondary-100'}`}
+                        >
+                            <View className={`h-12 w-12 rounded-full items-center justify-center mb-3 ${theme === 'dark' ? 'bg-green-900/30' : 'bg-green-100'}`}>
+                                <Ionicons name="medkit" size={24} color={theme === 'dark' ? '#4ade80' : '#16a34a'} />
+                            </View>
+                            <Text className={`font-bold text-base ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>{t('impfpass')}</Text>
+                            <Text className={`text-xs ${theme === 'dark' ? 'text-secondary-400' : 'text-secondary-500'}`}>Impfungen verwalten</Text>
+                        </TouchableOpacity>
+
+                        {/* 2. Symptome */}
+                        <TouchableOpacity
+                            onPress={() => router.push({ pathname: '/pet/[id]/symptoms', params: { id } })}
+                            className={`w-[48%] mb-4 p-4 rounded-3xl ${theme === 'dark' ? 'bg-secondary-900' : 'bg-white shadow-sm shadow-stone-200'} border ${theme === 'dark' ? 'border-secondary-800' : 'border-secondary-100'}`}
+                        >
+                            <View className={`h-12 w-12 rounded-full items-center justify-center mb-3 ${theme === 'dark' ? 'bg-orange-900/30' : 'bg-orange-100'}`}>
+                                <Ionicons name="thermometer" size={24} color={theme === 'dark' ? '#fb923c' : '#ea580c'} />
+                            </View>
+                            <Text className={`font-bold text-base ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>Symptome</Text>
+                            <Text className={`text-xs ${theme === 'dark' ? 'text-secondary-400' : 'text-secondary-500'}`}>Krankheitsverlauf</Text>
+                        </TouchableOpacity>
+
+                        {/* 3. Heimtierausweis */}
+                        <TouchableOpacity
+                            onPress={() => router.push({ pathname: '/pet/[id]/passport', params: { id } })}
+                            className={`w-[48%] mb-4 p-4 rounded-3xl ${theme === 'dark' ? 'bg-secondary-900' : 'bg-white shadow-sm shadow-stone-200'} border ${theme === 'dark' ? 'border-secondary-800' : 'border-secondary-100'}`}
+                        >
+                            <View className={`h-12 w-12 rounded-full items-center justify-center mb-3 ${theme === 'dark' ? 'bg-blue-900/30' : 'bg-blue-100'}`}>
+                                <Ionicons name="book" size={24} color={theme === 'dark' ? '#60a5fa' : '#2563eb'} />
+                            </View>
+                            <Text className={`font-bold text-base ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>Ausweis</Text>
+                            <Text className={`text-xs ${theme === 'dark' ? 'text-secondary-400' : 'text-secondary-500'}`}>Offizielle Daten</Text>
+                        </TouchableOpacity>
+
+                        {/* 4. Bericht */}
+                        <TouchableOpacity
+                            onPress={goToDetailedReport}
+                            className={`w-[48%] mb-4 p-4 rounded-3xl ${theme === 'dark' ? 'bg-secondary-900' : 'bg-white shadow-sm shadow-stone-200'} border ${theme === 'dark' ? 'border-secondary-800' : 'border-secondary-100'}`}
+                        >
+                            <View className={`h-12 w-12 rounded-full items-center justify-center mb-3 ${theme === 'dark' ? 'bg-primary-900/30' : 'bg-primary-100'}`}>
+                                <Ionicons name="document-text" size={24} color={theme === 'dark' ? '#4ade80' : '#16a34a'} />
+                            </View>
+                            <Text className={`font-bold text-base ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>{t('report_generate') || 'Bericht'}</Text>
+                            <Text className={`text-xs ${theme === 'dark' ? 'text-secondary-400' : 'text-secondary-500'}`}>PDF Export</Text>
                         </TouchableOpacity>
                     </View>
-                    <View className="flex-row justify-end mb-4 space-x-3 flex-wrap">
-                        <TouchableOpacity onPress={() => router.push({ pathname: '/pet/[id]/passport', params: { id } })} className={`px-3 py-1.5 rounded-lg border mb-2 ${theme === 'dark' ? 'bg-blue-900/30 border-blue-500' : 'bg-blue-50 border-blue-100'}`}>
-                            <Text className={`font-bold font-sans text-xs ${theme === 'dark' ? 'text-blue-300' : 'text-blue-600'}`}>📖 Pass</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => router.push({ pathname: '/pet/[id]/symptoms', params: { id } })} className={`px-3 py-1.5 rounded-lg border mb-2 ${theme === 'dark' ? 'bg-orange-900/30 border-orange-500' : 'bg-orange-50 border-orange-100'}`}>
-                            <Text className={`font-bold font-sans text-xs ${theme === 'dark' ? 'text-orange-300' : 'text-orange-600'}`}>🤒 Symptome</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={goToDetailedReport} className={`px-3 py-1.5 rounded-lg border mb-2 ${theme === 'dark' ? 'bg-indigo-900/30 border-indigo-500' : 'bg-indigo-50 border-indigo-100'}`}>
-                            <Text className={`font-bold font-sans text-xs ${theme === 'dark' ? 'text-indigo-300' : 'text-indigo-600'}`}>{t('report_generate') || 'Bericht'}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={pickDocument} className="mb-2">
-                            <Text className={`font-bold font-sans ${theme === 'dark' ? 'text-primary-400' : 'text-primary-500'}`}>+ {t('doc_upload')}</Text>
+                </View>
+
+                {/* Documents Section */}
+                <View className="px-5 mb-8">
+                    <View className="flex-row justify-between items-center mb-4">
+                        <Text className={`text-lg font-bold font-sans ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>Dokumente</Text>
+                        <TouchableOpacity onPress={pickDocument}>
+                            <Text className={`font-bold text-sm ${theme === 'dark' ? 'text-primary-400' : 'text-primary-600'}`}>+ {t('doc_upload')}</Text>
                         </TouchableOpacity>
                     </View>
 
                     {docs.length === 0 ? (
                         <EmptyState
-                            icon="document-text-outline"
+                            icon="cloud-upload-outline"
                             title={t('no_docs')}
                             description="Lade wichtige PDF oder Bilder hoch."
                             actionLabel={t('doc_upload')}
                             onAction={pickDocument}
                         />
                     ) : (
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="pb-4">
                             {docs.map(doc => (
                                 <TouchableOpacity
                                     key={doc.id}
                                     onPress={() => openDocument(doc.uri)}
-                                    className={`mr-3 p-3 rounded-2xl border shadow-sm w-32 ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-secondary-100'}`}
+                                    className={`mr-3 p-3 rounded-2xl border shadow-sm w-36 ${theme === 'dark' ? 'bg-secondary-900 border-secondary-800' : 'bg-white border-secondary-100 shadow-stone-200'}`}
                                 >
-                                    <View className={`h-16 rounded-xl items-center justify-center mb-2 ${theme === 'dark' ? 'bg-slate-800' : 'bg-secondary-50'}`}>
-                                        <Ionicons name="document" size={32} color={theme === 'dark' ? '#8b5cf6' : '#8b5cf6'} />
+                                    <View className={`h-24 w-full rounded-xl items-center justify-center mb-2 ${theme === 'dark' ? 'bg-secondary-800' : 'bg-secondary-50'}`}>
+                                        <Ionicons name={doc.type.includes('pdf') ? "document-text" : "image"} size={32} color={theme === 'dark' ? '#9ca3af' : '#64748b'} />
                                     </View>
-                                    <Text numberOfLines={2} className={`text-sm font-bold font-sans ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>{doc.title}</Text>
-                                    <Text className={`text-xs mt-1 ${theme === 'dark' ? 'text-slate-500' : 'text-secondary-400'}`}>{doc.date}</Text>
+                                    <Text numberOfLines={1} className={`text-sm font-bold font-sans ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>{doc.title}</Text>
+                                    <Text className={`text-xs mt-1 ${theme === 'dark' ? 'text-secondary-400' : 'text-secondary-500'}`}>{doc.date}</Text>
                                 </TouchableOpacity>
                             ))}
                         </ScrollView>

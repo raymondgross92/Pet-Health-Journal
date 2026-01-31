@@ -7,11 +7,13 @@ type Theme = 'light' | 'dark' | 'system';
 interface ThemeContextType {
     theme: Theme;
     setTheme: (theme: Theme) => void;
+    toggleTheme: () => void;
 }
 
 const ThemeContext = createContext<ThemeContextType>({
     theme: 'system',
     setTheme: () => { },
+    toggleTheme: () => { },
 });
 
 export const useTheme = () => useContext(ThemeContext);
@@ -58,8 +60,12 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
         return () => clearTimeout(timeout);
     }, [theme]);
 
+    const toggleTheme = () => {
+        setTheme(theme === 'dark' ? 'light' : 'dark');
+    };
+
     return (
-        <ThemeContext.Provider value={{ theme, setTheme }}>
+        <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
             {children}
         </ThemeContext.Provider>
     );

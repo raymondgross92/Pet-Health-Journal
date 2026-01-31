@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, ImageBackground } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,8 @@ import { getDb } from '../../db';
 import { Pet } from '../../types';
 import EmptyState from '../../components/ui/EmptyState';
 import Button from '../../components/ui/Button';
+import Card from '../../components/ui/Card';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function DashboardScreen() {
     const router = useRouter();
@@ -71,116 +73,154 @@ export default function DashboardScreen() {
         loadData().then(() => setRefreshing(false));
     }, []);
 
+    // Empty State (Welcome)
     if (!loading && pets.length === 0) {
         return (
-            <SafeAreaView className={`flex-1 items-center justify-center px-6 ${theme === 'dark' ? 'bg-slate-950' : 'bg-white'}`}>
-                <View className={`w-32 h-32 rounded-full items-center justify-center mb-8 ${theme === 'dark' ? 'bg-indigo-900/30' : 'bg-indigo-50'}`}>
-                    <Ionicons name="paw" size={64} color="#8b5cf6" />
+            <SafeAreaView className={`flex-1 items-center justify-center px-6 ${theme === 'dark' ? 'bg-slate-950' : 'bg-secondary-50'}`}>
+                <StatusBar barStyle={theme === 'dark' ? 'light-content' : 'dark-content'} />
+                <View className={`w-40 h-40 rounded-full items-center justify-center mb-8 bg-white shadow-2xl shadow-indigo-500/20`}>
+                    <LinearGradient
+                        colors={['#4ade80', '#16a34a']}
+                        className="w-36 h-36 rounded-full items-center justify-center"
+                    >
+                        <Ionicons name="paw" size={70} color="white" />
+                    </LinearGradient>
                 </View>
-                <Text className={`text-3xl font-bold text-center mb-4 font-sans ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Willkommen!</Text>
-                <Text className={`text-center text-lg mb-10 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
-                    Dein persönliches Gesundheitsjournal für deine Haustiere. Lege jetzt dein erstes Tier an.
+                <Text className={`text-4xl font-extrabold text-center mb-3 font-sans ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Willkommen!</Text>
+                <Text className={`text-center text-lg mb-12 leading-6 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                    Dein persönliches Gesundheitsjournal für deine Haustiere. {'\n'}Lege jetzt dein erstes Tier an.
                 </Text>
                 <Button
                     label="Erstes Haustier hinzufügen"
                     onPress={() => router.push('/add-pet')}
                     size="lg"
-                    className="w-full"
+                    className="w-full shadow-xl shadow-indigo-500/40"
+                    variant="primary"
                 />
             </SafeAreaView>
         );
     }
 
     return (
-        <SafeAreaView className={`flex-1 ${theme === 'dark' ? 'bg-slate-950' : 'bg-secondary-50'}`}>
-            <ScrollView
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-                className="flex-1"
-            >
-                <View className="px-5 py-6 flex-row justify-between items-start">
-                    <View>
-                        <Text className={`text-3xl font-bold font-sans ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>{greeting}</Text>
-                        <Text className={theme === 'dark' ? 'text-slate-400' : 'text-secondary-500'}>Willkommen zurück in deinem Pet Health Journal.</Text>
-                    </View>
-                    <TouchableOpacity
-                        onPress={() => router.push('/search')}
-                        className={`p-2 rounded-full ${theme === 'dark' ? 'bg-slate-800' : 'bg-white shadow-sm'}`}
-                    >
-                        <Ionicons name="search" size={24} color={theme === 'dark' ? 'white' : '#64748b'} />
-                    </TouchableOpacity>
-                </View>
+        <View className="flex-1">
+            <StatusBar barStyle={theme === 'dark' ? 'light-content' : 'dark-content'} />
 
-                {pets.length > 0 && (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-5 mb-8">
-                        {pets.map(pet => (
-                            <TouchableOpacity
-                                key={pet.id}
-                                onPress={() => router.push(`/pet/${pet.id}`)}
-                                className="mr-4 items-center"
-                            >
-                                <Image
-                                    source={pet.image_uri ? { uri: pet.image_uri } : { uri: 'https://placehold.co/150' }}
-                                    className="w-16 h-16 rounded-full bg-gray-300 mb-2 border-2 border-primary-500"
-                                />
-                                <Text className={`font-medium text-xs ${theme === 'dark' ? 'text-slate-300' : 'text-secondary-700'}`}>{pet.name}</Text>
-                            </TouchableOpacity>
-                        ))}
-                        <TouchableOpacity
-                            onPress={() => router.push('/add-pet')}
-                            className={`w-16 h-16 rounded-full items-center justify-center border-2 border-dashed mb-2 ${theme === 'dark' ? 'border-slate-700 bg-slate-900' : 'border-secondary-300 bg-secondary-100'}`}
-                        >
-                            <Ionicons name="add" size={24} color={theme === 'dark' ? '#94a3b8' : '#64748b'} />
-                        </TouchableOpacity>
-                    </ScrollView>
-                )}
+            {/* Background Gradient */}
+            <LinearGradient
+                colors={theme === 'dark' ? ['#0c0a09', '#1c1917'] : ['#ecfccb', '#f5f5f4']}
+                className="absolute left-0 right-0 top-0 h-full"
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+            />
 
-                {lowStock.length > 0 && (
-                    <View className="px-5 mb-6">
-                        {lowStock.map(item => (
-                            <TouchableOpacity
-                                key={item.id}
-                                onPress={() => router.push(`/medication/${item.id}`)}
-                                className="bg-red-50 border border-red-100 p-3 rounded-xl flex-row items-center mb-2"
-                            >
-                                <Ionicons name="alert-circle" size={20} color="#ef4444" className="mr-3" />
-                                <View>
-                                    <Text className="text-red-700 font-bold text-sm">Medikament fast leer!</Text>
-                                    <Text className="text-red-500 text-xs">{item.name} noch {item.stock} Stück</Text>
-                                </View>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                )}
-
-                <View className={`px-5 py-6 rounded-t-[30px] flex-1 ${theme === 'dark' ? 'bg-slate-900' : 'bg-white shadow-sm'}`}>
-                    <Text className={`text-lg font-bold mb-4 ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>Heute anstehend</Text>
-
-                    {todayTasks.length === 0 ? (
-                        <EmptyState
-                            icon="checkmark-done-outline"
-                            title="Alles erledigt"
-                            description="Keine offenen Aufgaben für heute geplant."
-                        />
-                    ) : (
+            <SafeAreaView className="flex-1">
+                <ScrollView
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme === 'dark' ? '#fff' : '#8b5cf6'} />}
+                    className="flex-1"
+                    contentContainerStyle={{ paddingBottom: 100 }}
+                >
+                    {/* Header */}
+                    <View className="px-6 pt-4 pb-2 flex-row justify-between items-start">
                         <View>
-                            {todayTasks.map((task, idx) => (
-                                <View key={idx} className={`flex-row items-center mb-4 p-3 rounded-xl border ${theme === 'dark' ? 'border-slate-800 bg-slate-900' : 'border-secondary-50 bg-secondary-50'}`}>
-                                    <View className="mr-4 w-12 items-center justify-center">
-                                        <Text className={`font-bold ${theme === 'dark' ? 'text-slate-400' : 'text-secondary-500'}`}>{task.time}</Text>
+                            <Text className={`text-sm font-bold uppercase mb-1 tracking-wider ${theme === 'dark' ? 'text-primary-400' : 'text-primary-600'}`}>
+                                {new Date().toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}
+                            </Text>
+                            <Text className={`text-4xl font-extrabold font-sans ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{greeting}</Text>
+                        </View>
+                        <TouchableOpacity
+                            onPress={() => router.push('/search')}
+                            className={`p-3 rounded-full ${theme === 'dark' ? 'bg-stone-800' : 'bg-white shadow-lg shadow-green-900/10'}`}
+                        >
+                            <Ionicons name="search" size={24} color={theme === 'dark' ? 'white' : '#64748b'} />
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Pets Quick Access */}
+                    {pets.length > 0 && (
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-6 py-4 mb-2">
+                            {pets.map(pet => (
+                                <TouchableOpacity
+                                    key={pet.id}
+                                    onPress={() => router.push(`/pet/${pet.id}`)}
+                                    className="mr-5 items-center"
+                                >
+                                    <View className={`w-20 h-20 rounded-full p-1 border-2 ${theme === 'dark' ? 'border-primary-500' : 'border-primary-400'}`}>
+                                        <Image
+                                            source={pet.image_uri ? { uri: pet.image_uri } : { uri: 'https://placehold.co/150' }}
+                                            className="w-full h-full rounded-full bg-slate-200"
+                                        />
                                     </View>
-                                    <View className={`h-10 w-10 rounded-full items-center justify-center mr-3 bg-opacity-20`} style={{ backgroundColor: task.color + '20' }}>
-                                        <Ionicons name={task.icon} size={20} color={task.color} />
-                                    </View>
-                                    <View className="flex-1">
-                                        <Text className={`font-bold text-base ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>{task.title}</Text>
-                                        <Text className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-secondary-500'}`}>{task.subtitle}</Text>
-                                    </View>
+                                    <Text className={`mt-2 font-bold text-sm ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>{pet.name}</Text>
+                                </TouchableOpacity>
+                            ))}
+                            <TouchableOpacity
+                                onPress={() => router.push('/add-pet')}
+                                className="mr-5 items-center justify-center"
+                            >
+                                <View className={`w-20 h-20 rounded-full items-center justify-center border-2 border-dashed ${theme === 'dark' ? 'border-stone-700 bg-stone-800' : 'border-green-300 bg-white'}`}>
+                                    <Ionicons name="add" size={32} color={theme === 'dark' ? '#a8a29e' : '#16a34a'} />
                                 </View>
+                                <Text className={`mt-2 font-medium text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>Neu</Text>
+                            </TouchableOpacity>
+                        </ScrollView>
+                    )}
+
+                    {/* Alerts (Low Stock) */}
+                    {lowStock.length > 0 && (
+                        <View className="px-6 mb-6">
+                            {lowStock.map(item => (
+                                <Card key={item.id} className="mb-3 bg-red-50 border-red-100 flex-row items-center border shadow-none" padding="sm" onPress={() => router.push(`/medication/${item.id}`)}>
+                                    <View className="w-10 h-10 rounded-full bg-red-100 items-center justify-center mr-3">
+                                        <Ionicons name="alert" size={20} color="#ef4444" />
+                                    </View>
+                                    <View>
+                                        <Text className="text-red-800 font-bold text-base">Medikament nachfüllen!</Text>
+                                        <Text className="text-red-600 font-medium text-sm">{item.name}: Nur noch {item.stock} Stück</Text>
+                                    </View>
+                                </Card>
                             ))}
                         </View>
                     )}
-                </View>
-            </ScrollView>
-        </SafeAreaView>
+
+                    {/* Today's Tasks */}
+                    <View className="px-6 flex-1">
+                        <Text className={`text-xl font-bold mb-4 ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>Heute anstehend</Text>
+
+                        {todayTasks.length === 0 ? (
+                            <Card className="items-center py-10" variant="elevated">
+                                <View className="w-16 h-16 bg-green-100 rounded-full items-center justify-center mb-4">
+                                    <Ionicons name="checkmark" size={32} color="#10b981" />
+                                </View>
+                                <Text className={`text-lg font-bold mb-1 ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>Alles erledigt!</Text>
+                                <Text className={`${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Keine offenen Aufgaben für heute.</Text>
+                            </Card>
+                        ) : (
+                            <View>
+                                {todayTasks.map((task, idx) => (
+                                    <Card key={idx} className="mb-4 flex-row items-center shadow-sm" padding="md" variant="elevated">
+                                        <View className="mr-5 items-center justify-center w-14">
+                                            <Text className={`font-bold text-lg ${theme === 'dark' ? 'text-primary-300' : 'text-primary-600'}`}>{task.time}</Text>
+                                        </View>
+
+                                        <View className="h-12 w-1 border-r border-slate-100 mr-5" />
+
+                                        <View className="flex-1">
+                                            <View className="flex-row items-center mb-1">
+                                                <View className={`h-6 w-6 rounded-full items-center justify-center mr-2`} style={{ backgroundColor: task.color + '20' }}>
+                                                    <Ionicons name={task.icon} size={14} color={task.color} />
+                                                </View>
+                                                <Text className={`font-bold text-xs uppercase tracking-wide ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>{task.type}</Text>
+                                            </View>
+                                            <Text className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{task.title}</Text>
+                                            <Text className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>{task.subtitle}</Text>
+                                        </View>
+                                    </Card>
+                                ))}
+                            </View>
+                        )}
+                    </View>
+                </ScrollView>
+            </SafeAreaView>
+        </View>
     );
 }

@@ -131,6 +131,18 @@ export default function CareScreen() {
         }
     };
 
+    const incrementStock = async (id: number, currentStock: number) => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        try {
+            const db = await getDb();
+            const newStock = currentStock + 1;
+            await db.runAsync('UPDATE medications SET stock = ? WHERE id = ?', [newStock, id]);
+            loadData();
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
     return (
         <SafeAreaView className={`flex-1 ${theme === 'dark' ? 'bg-slate-950' : 'bg-secondary-50'}`}>
             <View className={`px-5 py-4 border-b flex-row justify-between items-center shadow-sm ${theme === 'dark' ? 'bg-slate-950 border-slate-800' : 'bg-white border-secondary-100'}`}>
@@ -156,16 +168,57 @@ export default function CareScreen() {
                     </TouchableOpacity>
                     <TouchableOpacity
                         onPress={() => router.push('/expenses')}
-                        className="h-10 w-10 bg-purple-100 rounded-full items-center justify-center active:bg-purple-200"
+                        className="h-10 w-10 bg-green-100 rounded-full items-center justify-center active:bg-green-200"
                     >
-                        <Ionicons name="wallet" size={20} color="#8b5cf6" />
+                        <Ionicons name="wallet" size={20} color="#16a34a" />
                     </TouchableOpacity>
                 </View>
             </View>
 
-            <ScrollView className="flex-1 px-5 pt-5">
+            <ScrollView className="flex-1 px-5 pt-2">
 
+                {/* Search Bar Placeholder (Visual only) */}
+                <View className={`p-3 rounded-xl mb-6 flex-row items-center ${theme === 'dark' ? 'bg-secondary-800' : 'bg-white border border-secondary-100'}`}>
+                    <Ionicons name="search" size={20} color="#a8a29e" className="mr-2" />
+                    <Text className="text-secondary-400">Tierärzte oder Medikamente suchen...</Text>
+                </View>
 
+                {/* Categories */}
+                <Text className={`text-lg font-bold mb-4 ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>{t('medications_title')}</Text>
+
+                {meds.length === 0 ? (
+                    <EmptyState
+                        title="Keine Medikamente"
+                        description="Füge die Medikamente deiner Haustiere hinzu."
+                        icon="medkit-outline"
+                    />
+                ) : (
+                    meds.map(med => (
+                        <View key={med.id} className={`mb-4 p-4 rounded-2xl flex-row items-center justify-between ${theme === 'dark' ? 'bg-secondary-900' : 'bg-white shadow-sm shadow-stone-200'}`}>
+                            <View className="flex-row items-center flex-1">
+                                <View className={`h-12 w-12 rounded-full items-center justify-center mr-4 ${theme === 'dark' ? 'bg-green-900/20' : 'bg-green-50'}`}>
+                                    <Ionicons name="medkit" size={24} color="#22c55e" />
+                                </View>
+                                <View>
+                                    <Text className={`font-bold text-base ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>{med.name}</Text>
+                                    <Text className={`text-sm ${theme === 'dark' ? 'text-secondary-400' : 'text-secondary-500'}`}>{med.dosage}</Text>
+                                </View>
+                            </View>
+
+                            <View className="flex-row items-center bg-secondary-100 rounded-lg p-1 dark:bg-secondary-800">
+                                <TouchableOpacity onPress={() => decrementStock(med.id, med.stock)} className="p-2">
+                                    <Ionicons name="remove" size={20} color={theme === 'dark' ? 'white' : '#57534e'} />
+                                </TouchableOpacity>
+                                <Text className={`font-bold mx-2 w-8 text-center ${med.stock <= 3 ? 'text-red-500' : theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>
+                                    {med.stock}
+                                </Text>
+                                <TouchableOpacity onPress={() => incrementStock(med.id, med.stock)} className="p-2">
+                                    <Ionicons name="add" size={20} color={theme === 'dark' ? 'white' : '#57534e'} />
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    ))
+                )}
                 {/* Routines Section */}
                 <View className="mb-8">
                     <View className="flex-row justify-between items-center mb-3">
