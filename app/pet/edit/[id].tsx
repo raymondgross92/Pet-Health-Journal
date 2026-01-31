@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, Image, TouchableOpacity, Alert, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { getDb } from '../../../db';
 import Input from '../../../components/ui/Input';
 import Button from '../../../components/ui/Button';
+import DateTimePickerInput from '../../../components/ui/DateTimePickerInput';
 import { Pet } from '../../../types';
 
 export default function EditPetScreen() {
@@ -17,9 +18,12 @@ export default function EditPetScreen() {
     const [breed, setBreed] = useState('');
     const [species, setSpecies] = useState('Hund');
     const [customSpecies, setCustomSpecies] = useState('');
-    const [age, setAge] = useState('');
+    const [dateOfBirth, setDateOfBirth] = useState(new Date());
     const [weight, setWeight] = useState('');
+    const [targetWeight, setTargetWeight] = useState('');
     const [image, setImage] = useState<string | null>(null);
+
+
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -48,8 +52,22 @@ export default function EditPetScreen() {
                     setCustomSpecies(result.species || '');
                 }
 
-                setAge(result.date_of_birth);
+                if (result.date_of_birth) {
+                    // Try to parse 'DD.MM.YYYY' or 'YYYY-MM-DD' depending on what's in DB
+                    // Assuming 'DD.MM.YYYY' based on AddPet logic
+                    const parts = result.date_of_birth.split('.');
+                    if (parts.length === 3) {
+                        const date = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+                        setDateOfBirth(date);
+                    } else {
+                        // Fallback/Legacy
+                        setDateOfBirth(new Date());
+                    }
+                }
+
                 setWeight(result.weight ? result.weight.toString() : '');
+                setTargetWeight(result.target_weight ? result.target_weight.toString() : '');
+                setTargetWeight(result.target_weight ? result.target_weight.toString() : '');
                 setImage(result.image_uri || null);
             }
         } catch (e) {
@@ -73,6 +91,8 @@ export default function EditPetScreen() {
         }
     };
 
+
+
     const handleSave = async () => {
         if (!name.trim()) {
             Alert.alert('Fehler', 'Bitte gib einen Namen ein');
@@ -89,14 +109,21 @@ export default function EditPetScreen() {
             const db = await getDb();
             const finalSpecies = species === 'Andere' ? customSpecies : species;
 
+            const formattedDate = dateOfBirth.toLocaleDateString('de-DE', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+
             await db.runAsync(
-                'UPDATE pets SET name = ?, breed = ?, date_of_birth = ?, weight = ?, image_uri = ?, species = ? WHERE id = ?',
+                'UPDATE pets SET name = ?, breed = ?, date_of_birth = ?, weight = ?, image_uri = ?, species = ?, target_weight = ? WHERE id = ?',
                 name,
                 breed,
-                age,
+                formattedDate,
                 weight ? parseFloat(weight) : null,
                 image,
                 finalSpecies,
+                targetWeight ? parseFloat(targetWeight) : null,
                 Number(id)
             );
 
@@ -189,12 +216,14 @@ export default function EditPetScreen() {
                 />
 
                 <View className="flex-row space-x-4">
-                    <Input
-                        label="Alter / Geb."
-                        containerClassName="flex-1"
-                        value={age}
-                        onChangeText={setAge}
-                    />
+                    <View className="flex-1 mb-4">
+                        <DateTimePickerInput
+                            label="Geburtsdatum"
+                            value={dateOfBirth}
+                            onChange={setDateOfBirth}
+                        />
+                    </View>
+
                     <Input
                         label="Gewicht (kg)"
                         keyboardType="numeric"
@@ -203,6 +232,14 @@ export default function EditPetScreen() {
                         onChangeText={setWeight}
                     />
                 </View>
+
+                <Input
+                    label="Zielgewicht (kg) (Optional)"
+                    placeholder="z.B. 23"
+                    keyboardType="numeric"
+                    value={targetWeight}
+                    onChangeText={setTargetWeight}
+                />
 
                 <View className="h-8" />
 

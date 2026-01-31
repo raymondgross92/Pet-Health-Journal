@@ -1,17 +1,19 @@
 import { View, Text, Image, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { calculateAge } from '../utils/dateUtils';
 
 interface PetCardProps {
     name: string;
     breed: string;
-    age: string;
+    age: string; // This is the DOB string
     image?: string;
     onPress?: () => void;
 }
 
 export default function PetCard({ name, breed, age, image, onPress }: PetCardProps) {
     const { theme } = useTheme();
+    const displayAge = calculateAge(age);
     return (
         <TouchableOpacity
             onPress={onPress}
@@ -31,7 +33,7 @@ export default function PetCard({ name, breed, age, image, onPress }: PetCardPro
             </View>
 
             <View className={`px-3 py-1 rounded-full ${theme === 'dark' ? 'bg-slate-800' : 'bg-secondary-50'}`}>
-                <Text className={`text-xs font-medium ${theme === 'dark' ? 'text-slate-400' : 'text-secondary-600'}`}>{age}</Text>
+                <Text className={`text-xs font-medium ${theme === 'dark' ? 'text-slate-400' : 'text-secondary-600'}`}>{displayAge}</Text>
             </View>
         </TouchableOpacity>
     );

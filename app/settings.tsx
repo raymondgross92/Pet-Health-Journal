@@ -53,7 +53,8 @@ export default function SettingsScreen() {
             }
 
             // Copy to cache dir to share with a proper name
-            const backupPath = cacheDir + 'pet_health_backup.db';
+            const dateStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+            const backupPath = cacheDir + `pet_health_backup_${dateStr}.db`;
 
             await FileSystemLegacy.copyAsync({
                 from: dbFileUri,
@@ -218,6 +219,22 @@ export default function SettingsScreen() {
                 <View className="mb-8">
                     <Text className={`font-medium mb-3 uppercase text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-secondary-500'}`}>{t('data_management')}</Text>
                     <View className={`rounded-xl overflow-hidden ${theme === 'dark' ? 'bg-slate-900' : 'bg-secondary-50'}`}>
+
+                        <TouchableOpacity
+                            onPress={() => router.push('/settings/sync')}
+                            className={`p-4 flex-row justify-between items-center border-b active:bg-secondary-100 ${theme === 'dark' ? 'border-slate-800 active:bg-slate-800' : 'border-secondary-200'}`}
+                        >
+                            <View className="flex-row items-center space-x-3">
+                                <View className={`h-8 w-8 rounded-full items-center justify-center ${theme === 'dark' ? 'bg-purple-900/30' : 'bg-purple-100'}`}>
+                                    <Ionicons name="people-outline" size={16} color={theme === 'dark' ? '#a78bfa' : '#7c3aed'} />
+                                </View>
+                                <View>
+                                    <Text className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>{t('sync_partner')}</Text>
+                                    <Text className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-secondary-500'}`}>{t('sync_partner_desc')}</Text>
+                                </View>
+                            </View>
+                            <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+                        </TouchableOpacity>
 
                         <TouchableOpacity
                             onPress={exportDatabase}

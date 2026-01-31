@@ -16,6 +16,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import { Pet, Log } from '../../types';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
+import { calculateAge } from '../../utils/dateUtils';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -324,7 +325,8 @@ export default function PetDetailScreen() {
                             </View>
                             <View className={`items-center p-3 rounded-2xl flex-1 ml-2 ${theme === 'dark' ? 'bg-slate-800' : 'bg-primary-50'}`}>
                                 <Text className={`text-xs uppercase font-bold mb-1 ${theme === 'dark' ? 'text-slate-500' : 'text-secondary-400'}`}>Alter/Geb.</Text>
-                                <Text className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>{pet.date_of_birth}</Text>
+                                <Text className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>{calculateAge(pet.date_of_birth)}</Text>
+                                <Text className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-secondary-500'}`}>{pet.date_of_birth}</Text>
                             </View>
                         </View>
                     </View>
@@ -333,11 +335,38 @@ export default function PetDetailScreen() {
                 {/* Weight Chart */}
                 {weightHistory && weightHistory.data.length > 1 && (
                     <View className="px-5 mb-8">
-                        <Text className={`text-xl font-bold mb-4 font-sans ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>Gewichtsverlauf</Text>
+                        <View className="flex-row justify-between items-end mb-4">
+                            <View>
+                                <Text className={`text-xl font-bold font-sans ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>Gewichtsverlauf</Text>
+                                {pet && pet.target_weight && (
+                                    <Text className="text-xs text-primary-500 font-bold mt-1">
+                                        Ziel: {pet.target_weight} kg
+                                        {pet.weight && (
+                                            pet.weight > pet.target_weight
+                                                ? ` (noch ${(pet.weight - pet.target_weight).toFixed(1)} kg abnehmen)`
+                                                : pet.weight < pet.target_weight
+                                                    ? ` (noch ${(pet.target_weight - pet.weight).toFixed(1)} kg zunehmen)`
+                                                    : ' (Erreicht!)'
+                                        )}
+                                    </Text>
+                                )}
+                            </View>
+                        </View>
                         <LineChart
                             data={{
                                 labels: weightHistory.labels,
-                                datasets: [{ data: weightHistory.data }]
+                                datasets: [
+                                    { data: weightHistory.data },
+                                    // Add Target Line if exists
+                                    ...(pet && pet.target_weight ? [{
+                                        data: new Array(weightHistory.data.length).fill(pet.target_weight),
+                                        color: (opacity = 1) => `rgba(16, 185, 129, ${opacity})`, // Emerald Green
+                                        strokeWidth: 2,
+                                        withDots: false,
+                                    }] : [])
+                                ],
+                                // Add Legend if target exists
+                                legend: pet && pet.target_weight ? ["Aktuell", "Ziel"] : ["Aktuell"]
                             }}
                             width={screenWidth - 40}
                             height={220}
@@ -369,11 +398,17 @@ export default function PetDetailScreen() {
                             <Text className={`font-bold text-sm mr-4 ${theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'}`}>{t('impfpass')}</Text>
                         </TouchableOpacity>
                     </View>
-                    <View className="flex-row justify-end mb-4 space-x-3">
-                        <TouchableOpacity onPress={goToDetailedReport} className={`px-3 py-1.5 rounded-lg border ${theme === 'dark' ? 'bg-indigo-900/30 border-indigo-500' : 'bg-indigo-50 border-indigo-100'}`}>
+                    <View className="flex-row justify-end mb-4 space-x-3 flex-wrap">
+                        <TouchableOpacity onPress={() => router.push({ pathname: '/pet/[id]/passport', params: { id } })} className={`px-3 py-1.5 rounded-lg border mb-2 ${theme === 'dark' ? 'bg-blue-900/30 border-blue-500' : 'bg-blue-50 border-blue-100'}`}>
+                            <Text className={`font-bold font-sans text-xs ${theme === 'dark' ? 'text-blue-300' : 'text-blue-600'}`}>📖 Pass</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => router.push({ pathname: '/pet/[id]/symptoms', params: { id } })} className={`px-3 py-1.5 rounded-lg border mb-2 ${theme === 'dark' ? 'bg-orange-900/30 border-orange-500' : 'bg-orange-50 border-orange-100'}`}>
+                            <Text className={`font-bold font-sans text-xs ${theme === 'dark' ? 'text-orange-300' : 'text-orange-600'}`}>🤒 Symptome</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={goToDetailedReport} className={`px-3 py-1.5 rounded-lg border mb-2 ${theme === 'dark' ? 'bg-indigo-900/30 border-indigo-500' : 'bg-indigo-50 border-indigo-100'}`}>
                             <Text className={`font-bold font-sans text-xs ${theme === 'dark' ? 'text-indigo-300' : 'text-indigo-600'}`}>{t('report_generate') || 'Bericht'}</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={pickDocument}>
+                        <TouchableOpacity onPress={pickDocument} className="mb-2">
                             <Text className={`font-bold font-sans ${theme === 'dark' ? 'text-primary-400' : 'text-primary-500'}`}>+ {t('doc_upload')}</Text>
                         </TouchableOpacity>
                     </View>

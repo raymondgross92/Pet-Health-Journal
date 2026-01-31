@@ -13,6 +13,10 @@ export const translations = {
         cancel: "Abbrechen",
         delete: "Löschen",
         save: "Speichern",
+
+        sync_partner_desc: "Daten gemeinsam nutzen",
+        sync_title: "Gemeinsam nutzen",
+        sync_desc: "Pet Health Journal speichert Daten lokal. Um Daten zu teilen, tausche einfach die Backup-Datei aus.",
         name: "Name",
         species: "Tierart",
         breed: "Rasse",
@@ -86,6 +90,7 @@ export const translations = {
         event_created: "Termin im Kalender erstellt!",
         event_error: "Konnte Termin nicht erstellen.",
         calendar_permission_denied: "Kalender-Zugriff verweigert. Bitte in Einstellungen prüfen.",
+        sync_partner: "Partner-Sync",
         search_title: "Suche",
         search_placeholder: "Suchen...",
         search_no_results: "Keine Ergebnisse gefunden.",
@@ -104,6 +109,22 @@ export const translations = {
         onboarding_3_desc: "Legen wir los und erstellen das Profil für deinen Liebling!",
         get_started: "Los geht's",
         skip: "Überspringen",
+        // Finance
+        trend_6_months: "Trend (6 Monate)",
+        distribution: "Verteilung (Gesamt)",
+        this_year: "Dieses Jahr",
+        delete_expense_confirm: "Eintrag wirklich löschen?",
+        // Vets
+        open_maps: "In Karten öffnen",
+        search_emergency: "Notdienst in der Nähe suchen",
+        vet_edit: "Tierarzt bearbeiten",
+        emergency_contact: "Notfall-Kontakt?",
+        highlighted_red: "Wird rot hervorgehoben",
+        // General / Pets
+        add_photo: "Foto hinzufügen",
+        change_photo: "Foto ändern",
+        saving: "Speichert...",
+        save_success: "Erfolgreich gespeichert!",
     },
     en: {
         welcome: "Welcome back,",
@@ -192,6 +213,10 @@ export const translations = {
         event_created: "Event created in Calendar!",
         event_error: "Could not create event.",
         calendar_permission_denied: "Calendar access denied. Check settings.",
+        sync_partner: "Sync with Partner",
+        sync_partner_desc: "How to share data",
+        sync_title: "Use Together",
+        sync_desc: "Pet Health Journal is offline-first. To share data, simply exchange the backup file.",
         search_title: "Search",
         search_placeholder: "Search...",
         search_no_results: "No results found.",
@@ -210,6 +235,22 @@ export const translations = {
         onboarding_3_desc: "Let's get started and create a profile for your darling!",
         get_started: "Get Started",
         skip: "Skip",
+        // Finance
+        trend_6_months: "Trend (6 Months)",
+        distribution: "Distribution (Total)",
+        this_year: "This Year",
+        delete_expense_confirm: "Really delete entry?",
+        // Vets
+        open_maps: "Open in Maps",
+        search_emergency: "Search Emergency Vet nearby",
+        vet_edit: "Edit Vet",
+        emergency_contact: "Emergency Contact?",
+        highlighted_red: "Highlighted in red",
+        // General / Pets
+        add_photo: "Add Photo",
+        change_photo: "Change Photo",
+        saving: "Saving...",
+        save_success: "Saved successfully!",
     }
 };
 

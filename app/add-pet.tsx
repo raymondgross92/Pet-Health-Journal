@@ -4,10 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { getDb } from '../db';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
+import DateTimePickerInput from '../components/ui/DateTimePickerInput';
 
 export default function AddPetScreen() {
     const router = useRouter();
@@ -16,8 +16,8 @@ export default function AddPetScreen() {
     const [species, setSpecies] = useState('Hund');
     const [customSpecies, setCustomSpecies] = useState('');
     const [dateOfBirth, setDateOfBirth] = useState(new Date());
-    const [showDatePicker, setShowDatePicker] = useState(false);
     const [weight, setWeight] = useState('');
+    const [targetWeight, setTargetWeight] = useState('');
     const [image, setImage] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
@@ -34,12 +34,7 @@ export default function AddPetScreen() {
         }
     };
 
-    const onDateChange = (event: any, selectedDate?: Date) => {
-        setShowDatePicker(false);
-        if (selectedDate) {
-            setDateOfBirth(selectedDate);
-        }
-    };
+
 
     const handleSave = async () => {
         if (!name.trim()) {
@@ -65,13 +60,14 @@ export default function AddPetScreen() {
             });
 
             await db.runAsync(
-                'INSERT INTO pets (name, breed, date_of_birth, weight, image_uri, species) VALUES (?, ?, ?, ?, ?, ?)',
+                'INSERT INTO pets (name, breed, date_of_birth, weight, image_uri, species, target_weight) VALUES (?, ?, ?, ?, ?, ?, ?)',
                 name,
                 breed,
                 formattedDate,
                 weight ? parseFloat(weight) : null,
                 image,
-                finalSpecies
+                finalSpecies,
+                targetWeight ? parseFloat(targetWeight) : null
             );
 
             Alert.alert('Erfolg', 'Haustier erfolgreich gespeichert!', [
@@ -159,16 +155,11 @@ export default function AddPetScreen() {
 
                 <View className="flex-row space-x-4">
                     <View className="flex-1 mb-4">
-                        <Text className="text-secondary-700 font-medium mb-2 ml-1">Geburtsdatum</Text>
-                        <TouchableOpacity
-                            onPress={() => setShowDatePicker(true)}
-                            className="w-full bg-secondary-50 border border-secondary-200 rounded-2xl px-4 py-3.5 flex-row justify-between items-center"
-                        >
-                            <Text className="text-secondary-900">
-                                {dateOfBirth.toLocaleDateString('de-DE')}
-                            </Text>
-                            <Ionicons name="calendar-outline" size={20} color="#64748b" />
-                        </TouchableOpacity>
+                        <DateTimePickerInput
+                            label="Geburtsdatum"
+                            value={dateOfBirth}
+                            onChange={setDateOfBirth}
+                        />
                     </View>
 
                     <Input
@@ -181,15 +172,13 @@ export default function AddPetScreen() {
                     />
                 </View>
 
-                {showDatePicker && (
-                    <DateTimePicker
-                        value={dateOfBirth}
-                        mode="date"
-                        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                        onChange={onDateChange}
-                        maximumDate={new Date()}
-                    />
-                )}
+                <Input
+                    label="Zielgewicht (kg) (Optional)"
+                    placeholder="z.B. 23"
+                    keyboardType="numeric"
+                    value={targetWeight}
+                    onChangeText={setTargetWeight}
+                />
 
                 <View className="h-8" />
 

@@ -61,6 +61,8 @@ export async function initDatabase() {
         title TEXT NOT NULL,
         type TEXT, -- food, walk, hygiene, other
         time TEXT, -- HH:MM
+        frequency TEXT DEFAULT 'daily', -- daily, once
+        date TEXT, -- YYYY-MM-DD
         enabled INTEGER DEFAULT 1,
         FOREIGN KEY (pet_id) REFERENCES pets(id) ON DELETE CASCADE
     );
@@ -119,6 +121,60 @@ export async function initDatabase() {
     await db.runAsync('ALTER TABLE pets ADD COLUMN species TEXT');
   } catch (e) {
     // Column likely already exists
+  }
+
+  try {
+    await db.runAsync('ALTER TABLE logs ADD COLUMN vet_id INTEGER REFERENCES vets(id) ON DELETE SET NULL');
+  } catch (e) {
+    // Column likely already exists
+  }
+
+  try {
+    await db.runAsync('ALTER TABLE routines ADD COLUMN frequency TEXT DEFAULT "daily"');
+    await db.runAsync('ALTER TABLE routines ADD COLUMN date TEXT');
+  } catch (e) {
+    // Columns likely already exist
+  }
+
+  try {
+    await db.runAsync('ALTER TABLE pets ADD COLUMN target_weight REAL');
+  } catch (e) {
+    // Column likely already exists
+  }
+
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS appointments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      pet_id INTEGER,
+      vet_id INTEGER,
+      title TEXT NOT NULL,
+      date TEXT NOT NULL,
+      time TEXT,
+      notes TEXT,
+      FOREIGN KEY (pet_id) REFERENCES pets(id) ON DELETE CASCADE,
+      FOREIGN KEY (vet_id) REFERENCES vets(id) ON DELETE SET NULL
+    );
+  `);
+
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS symptoms (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      pet_id INTEGER,
+      title TEXT NOT NULL,
+      severity INTEGER,
+      date TEXT NOT NULL,
+      time TEXT,
+      notes TEXT,
+      image_uri TEXT,
+      FOREIGN KEY (pet_id) REFERENCES pets(id) ON DELETE CASCADE
+    );
+  `);
+
+  try {
+    // Add date column to routines if it doesn't exist (for one-time tasks)
+    await db.runAsync('ALTER TABLE routines ADD COLUMN date TEXT');
+  } catch (e) {
+    // Column likely exists (or validation error if strict)
   }
 
   return db;

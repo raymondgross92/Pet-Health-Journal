@@ -1,11 +1,12 @@
-import { View, Text, ScrollView, TouchableOpacity, Alert, TextInput } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import { getDb } from '../../db';
 import Button from '../../components/ui/Button';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function AddExpenseScreen() {
     const router = useRouter();
@@ -13,93 +14,126 @@ export default function AddExpenseScreen() {
 
     const [title, setTitle] = useState('');
     const [amount, setAmount] = useState('');
-    const [category, setCategory] = useState<string>('Food');
-    const [date, setDate] = useState(new Date().toLocaleDateString('de-DE')); // Simple string for now
-    const [notes, setNotes] = useState('');
+    const [date, setDate] = useState(new Date());
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [category, setCategory] = useState('Tierarzt');
+    const [petId, setPetId] = useState<number | null>(null);
+    const [pets, setPets] = useState<any[]>([]);
 
-    const categories = ['Food', 'Vet', 'Toys', 'Insurance', 'Other'];
+    const categories = ['Tierarzt', 'Futter', 'Medikamente', 'Zubehör', 'Versicherung', 'Sonstiges'];
+
+    useEffect(() => {
+        getDb().then(async (db) => {
+            const p = await db.getAllAsync('SELECT id, name FROM pets');
+            setPets(p);
+            if (p.length > 0) setPetId(p[0].id);
+        });
+    }, []);
 
     const handleSave = async () => {
         if (!title || !amount) {
-            Alert.alert("Fehler", "Bitte Titel und Betrag angeben.");
-            return;
-        }
-
-        const numAmount = parseFloat(amount.replace(',', '.'));
-        if (isNaN(numAmount)) {
-            Alert.alert("Fehler", "Ungültiger Betrag.");
+            Alert.alert('Fehler', 'Bitte Titel und Betrag eingeben');
             return;
         }
 
         try {
             const db = await getDb();
             await db.runAsync(
-                'INSERT INTO expenses (title, amount, category, date, notes) VALUES (?, ?, ?, ?, ?)',
-                [title, numAmount, category, date, notes]
+                'INSERT INTO expenses (pet_id, title, amount, date, category, notes) VALUES (?, ?, ?, ?, ?, ?)',
+                [
+                    petId,
+                    title,
+                    parseFloat(amount.replace(',', '.')),
+                    date.toLocaleDateString('de-DE'),
+                    category,
+                    ''
+                ]
             );
             router.back();
         } catch (e) {
             console.error(e);
-            Alert.alert("Fehler", "Konnte nicht speichern.");
+            Alert.alert('Fehler', 'Konnte Ausgabe nicht speichern');
         }
     };
 
     return (
         <SafeAreaView className={`flex-1 ${theme === 'dark' ? 'bg-slate-950' : 'bg-secondary-50'}`}>
-            <View className={`px-5 py-4 border-b flex-row justify-between items-center ${theme === 'dark' ? 'border-slate-800' : 'border-secondary-100'}`}>
-                <TouchableOpacity onPress={() => router.back()} className={`p-2 rounded-full ${theme === 'dark' ? 'bg-slate-900' : 'bg-white'}`}>
-                    <Ionicons name="close" size={24} color={theme === 'dark' ? 'white' : 'black'} />
+            <View className={`px-5 py-4 border-b flex-row items-center ${theme === 'dark' ? 'border-slate-800' : 'border-secondary-100'}`}>
+                <TouchableOpacity onPress={() => router.back()} className="mr-4">
+                    <Ionicons name="arrow-back" size={24} color={theme === 'dark' ? 'white' : 'black'} />
                 </TouchableOpacity>
-                <Text className={`text-xl font-bold font-sans ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>Ausgabe hinzufügen</Text>
-                <View className="w-10" />
+                <Text className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>Ausgabe hinzufügen</Text>
             </View>
 
-            <ScrollView className="flex-1 p-5">
-                <Text className={`text-sm font-bold uppercase mb-2 ${theme === 'dark' ? 'text-slate-400' : 'text-secondary-500'}`}>Titel</Text>
+            <ScrollView className="p-5">
+                <Text className={`text-xs font-bold uppercase mb-2 ${theme === 'dark' ? 'text-slate-500' : 'text-secondary-500'}`}>Titel</Text>
                 <TextInput
-                    className={`p-4 rounded-xl mb-6 ${theme === 'dark' ? 'bg-slate-900 text-white' : 'bg-white text-secondary-900'}`}
-                    placeholder="z.B. Hundefutter"
-                    placeholderTextColor={theme === 'dark' ? '#64748b' : '#94a3b8'}
+                    className={`p-4 rounded-xl mb-4 ${theme === 'dark' ? 'bg-slate-900 text-white' : 'bg-white text-secondary-900'}`}
+                    placeholder="z.B. Impfung, Trockenfutter"
+                    placeholderTextColor="#94a3b8"
                     value={title}
                     onChangeText={setTitle}
                 />
 
-                <Text className={`text-sm font-bold uppercase mb-2 ${theme === 'dark' ? 'text-slate-400' : 'text-secondary-500'}`}>Betrag (€)</Text>
+                <Text className={`text-xs font-bold uppercase mb-2 ${theme === 'dark' ? 'text-slate-500' : 'text-secondary-500'}`}>Betrag (CHF)</Text>
                 <TextInput
-                    className={`p-4 rounded-xl mb-6 text-2xl font-bold ${theme === 'dark' ? 'bg-slate-900 text-white' : 'bg-white text-secondary-900'}`}
+                    className={`p-4 rounded-xl mb-4 text-xl font-bold ${theme === 'dark' ? 'bg-slate-900 text-white' : 'bg-white text-secondary-900'}`}
                     placeholder="0.00"
-                    placeholderTextColor={theme === 'dark' ? '#64748b' : '#94a3b8'}
+                    placeholderTextColor="#94a3b8"
                     keyboardType="numeric"
                     value={amount}
                     onChangeText={setAmount}
                 />
 
-                <Text className={`text-sm font-bold uppercase mb-2 ${theme === 'dark' ? 'text-slate-400' : 'text-secondary-500'}`}>Kategorie</Text>
-                <View className="flex-row flex-wrap mb-6">
-                    {categories.map((cat) => (
+                <Text className={`text-xs font-bold uppercase mb-2 ${theme === 'dark' ? 'text-slate-500' : 'text-secondary-500'}`}>Kategorie</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
+                    {categories.map(cat => (
                         <TouchableOpacity
                             key={cat}
                             onPress={() => setCategory(cat)}
-                            className={`mr-2 mb-2 px-4 py-2 rounded-full border ${category === cat
-                                    ? (theme === 'dark' ? 'bg-indigo-600 border-indigo-500' : 'bg-primary-500 border-primary-500')
-                                    : (theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-secondary-200')
-                                }`}
+                            className={`mr-2 px-4 py-2 rounded-full border ${category === cat
+                                ? (theme === 'dark' ? 'bg-primary-900 border-primary-700' : 'bg-primary-100 border-primary-200')
+                                : (theme === 'dark' ? 'bg-slate-900 border-slate-700' : 'bg-white border-secondary-200')}`}
                         >
-                            <Text className={`font-medium ${category === cat
-                                    ? 'text-white'
-                                    : (theme === 'dark' ? 'text-slate-300' : 'text-secondary-600')
-                                }`}>{cat}</Text>
+                            <Text className={`${category === cat ? (theme === 'dark' ? 'text-primary-300' : 'text-primary-700') : (theme === 'dark' ? 'text-slate-400' : 'text-secondary-600')}`}>{cat}</Text>
                         </TouchableOpacity>
                     ))}
-                </View>
+                </ScrollView>
 
-                <Text className={`text-sm font-bold uppercase mb-2 ${theme === 'dark' ? 'text-slate-400' : 'text-secondary-500'}`}>Datum</Text>
-                <TextInput
-                    className={`p-4 rounded-xl mb-6 ${theme === 'dark' ? 'bg-slate-900 text-white' : 'bg-white text-secondary-900'}`}
-                    value={date}
-                    onChangeText={setDate}
-                    placeholder="TT.MM.JJJJ"
-                />
+                <Text className={`text-xs font-bold uppercase mb-2 ${theme === 'dark' ? 'text-slate-500' : 'text-secondary-500'}`}>Datum</Text>
+                <TouchableOpacity
+                    onPress={() => setShowDatePicker(true)}
+                    className={`p-4 rounded-xl mb-4 flex-row items-center ${theme === 'dark' ? 'bg-slate-900' : 'bg-white'}`}
+                >
+                    <Ionicons name="calendar-outline" size={20} color={theme === 'dark' ? '#94a3b8' : '#64748b'} />
+                    <Text className={`ml-2 ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>{date.toLocaleDateString('de-DE')}</Text>
+                </TouchableOpacity>
+
+                {showDatePicker && (
+                    <DateTimePicker
+                        value={date}
+                        mode="date"
+                        onChange={(e, d) => {
+                            setShowDatePicker(false);
+                            if (d) setDate(d);
+                        }}
+                    />
+                )}
+
+                <Text className={`text-xs font-bold uppercase mb-2 ${theme === 'dark' ? 'text-slate-500' : 'text-secondary-500'}`}>Haustier</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-8">
+                    {pets.map(p => (
+                        <TouchableOpacity
+                            key={p.id}
+                            onPress={() => setPetId(p.id)}
+                            className={`mr-2 px-4 py-2 rounded-full border ${petId === p.id
+                                ? (theme === 'dark' ? 'bg-indigo-900 border-indigo-700' : 'bg-indigo-50 border-indigo-200')
+                                : (theme === 'dark' ? 'bg-slate-900 border-slate-700' : 'bg-white border-secondary-200')}`}
+                        >
+                            <Text className={`${petId === p.id ? (theme === 'dark' ? 'text-indigo-300' : 'text-indigo-700') : (theme === 'dark' ? 'text-slate-400' : 'text-secondary-600')}`}>{p.name}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
 
                 <Button label="Speichern" onPress={handleSave} size="lg" />
             </ScrollView>

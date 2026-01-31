@@ -22,6 +22,7 @@ interface Pet {
 export default function PetsScreen() {
     const router = useRouter();
     const { theme } = useTheme();
+    const { t } = useLanguage();
     const [pets, setPets] = useState<Pet[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -48,9 +49,9 @@ export default function PetsScreen() {
     return (
         <SafeAreaView className={`flex-1 px-5 pt-5 ${theme === 'dark' ? 'bg-slate-950' : 'bg-secondary-50'}`}>
             <View className="flex-row justify-between items-center mb-6">
-                <Text className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>Meine Haustiere</Text>
+                <Text className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>{t('my_pets')}</Text>
                 <Button
-                    label="Tier hinzufügen"
+                    label={t('add_pet')}
                     size="sm"
                     onPress={() => router.push('/add-pet')}
                 />

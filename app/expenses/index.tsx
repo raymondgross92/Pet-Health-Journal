@@ -1,61 +1,59 @@
-import { View, Text, ScrollView, TouchableOpacity, Alert, Dimensions, ActivityIndicator, LayoutAnimation, UIManager, Platform } from 'react-native';
-import EmptyState from '../../components/ui/EmptyState';
-
-if (Platform.OS === 'android') {
-    if (UIManager.setLayoutAnimationEnabledExperimental) {
-        UIManager.setLayoutAnimationEnabledExperimental(true);
-    }
-}
+import { View, Text, ScrollView, TouchableOpacity, Alert, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useState, useCallback } from 'react';
-import { PieChart } from 'react-native-chart-kit';
 import { useTheme } from '../../context/ThemeContext';
-import { useLanguage } from '../../context/LanguageContext';
 import { getDb } from '../../db';
-import { Expense } from '../../types';
-import Button from '../../components/ui/Button';
+import EmptyState from '../../components/ui/EmptyState';
+import { BarChart } from 'react-native-chart-kit';
 
 const screenWidth = Dimensions.get('window').width;
 
 export default function ExpensesScreen() {
     const router = useRouter();
     const { theme } = useTheme();
-    const { t } = useLanguage(); // We might need to add translations later
-    const [expenses, setExpenses] = useState<Expense[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [totalMonth, setTotalMonth] = useState(0);
+    const [expenses, setExpenses] = useState<any[]>([]);
+    const [total, setTotal] = useState(0);
+    const [chartData, setChartData] = useState<any>(null);
 
     const loadData = async () => {
         try {
-            setLoading(true);
             const db = await getDb();
-            const result = await db.getAllAsync<Expense>(
-                'SELECT * FROM expenses ORDER BY date DESC'
-            );
+            const result = await db.getAllAsync<any>('SELECT * FROM expenses ORDER BY date DESC');
             setExpenses(result);
 
-            // Calculate current month total
-            const now = new Date();
-            const currentMonth = now.getMonth();
-            const currentYear = now.getFullYear();
+            // Calculate Total
+            const sum = result.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+            setTotal(sum);
 
-            const total = result.reduce((sum, item) => {
-                const [d, m, y] = item.date.split('.');
-                // Check if valid date format DD.MM.YYYY
-                if (parseInt(m) - 1 === currentMonth && parseInt(y) === currentYear) {
-                    return sum + item.amount;
-                }
-                return sum;
-            }, 0);
-            setTotalMonth(total);
+            // Calculate Chart Data (Last 6 Months)
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+            const today = new Date();
+            const last6Months = [];
+            const dataConfig = [];
+
+            for (let i = 5; i >= 0; i--) {
+                const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+                last6Months.push(months[d.getMonth()]);
+
+                // Filter expenses for this month/year
+                // Note: stored date is DD.MM.YYYY
+                const monthSum = result.filter(e => {
+                    const [day, month, year] = e.date.split('.');
+                    return parseInt(month) === d.getMonth() + 1 && parseInt(year) === d.getFullYear();
+                }).reduce((acc, curr) => acc + curr.amount, 0);
+
+                dataConfig.push(monthSum);
+            }
+
+            setChartData({
+                labels: last6Months,
+                datasets: [{ data: dataConfig }]
+            });
 
         } catch (e) {
             console.error(e);
-            Alert.alert("Fehler", "Konnte Ausgaben nicht laden.");
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -64,36 +62,6 @@ export default function ExpensesScreen() {
             loadData();
         }, [])
     );
-
-    const chartConfig = {
-        backgroundGradientFrom: theme === 'dark' ? "#1e293b" : "#ffffff",
-        backgroundGradientTo: theme === 'dark' ? "#1e293b" : "#ffffff",
-        color: (opacity = 1) => theme === 'dark' ? `rgba(255, 255, 255, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
-        strokeWidth: 2,
-    };
-
-    // Prepare Chart Data
-    const categoryDataLine = expenses.reduce((acc, curr) => {
-        acc[curr.category] = (acc[curr.category] || 0) + curr.amount;
-        return acc;
-    }, {} as Record<string, number>);
-
-    const chartData = Object.keys(categoryDataLine).map((key, index) => {
-        const colors = [
-            '#f87171', // red
-            '#60a5fa', // blue
-            '#34d399', // green
-            '#fbbf24', // amber
-            '#a78bfa', // violet
-        ];
-        return {
-            name: key,
-            population: categoryDataLine[key],
-            color: colors[index % colors.length],
-            legendFontColor: theme === 'dark' ? "#cbd5e1" : "#7f7f7f",
-            legendFontSize: 12
-        };
-    });
 
     const handleDelete = (id: number) => {
         Alert.alert(
@@ -106,7 +74,6 @@ export default function ExpensesScreen() {
                     style: "destructive",
                     onPress: async () => {
                         const db = await getDb();
-                        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
                         await db.runAsync('DELETE FROM expenses WHERE id = ?', [id]);
                         loadData();
                     }
@@ -121,78 +88,90 @@ export default function ExpensesScreen() {
                 <TouchableOpacity onPress={() => router.back()} className={`p-2 rounded-full ${theme === 'dark' ? 'bg-slate-900' : 'bg-white'}`}>
                     <Ionicons name="arrow-back" size={24} color={theme === 'dark' ? 'white' : 'black'} />
                 </TouchableOpacity>
-                <Text className={`text-xl font-bold font-sans ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>{t('expenses_title')}</Text>
-                <TouchableOpacity onPress={() => router.push('/expenses/add')} className={`p-2 rounded-full ${theme === 'dark' ? 'bg-slate-900' : 'bg-white'}`}>
+                <Text className={`text-xl font-bold font-sans ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>Ausgaben</Text>
+                <TouchableOpacity
+                    onPress={() => router.push('/expenses/add')}
+                    className={`p-2 rounded-full ${theme === 'dark' ? 'bg-slate-900' : 'bg-white'}`}
+                >
                     <Ionicons name="add" size={24} color={theme === 'dark' ? 'white' : 'black'} />
                 </TouchableOpacity>
             </View>
 
             <ScrollView className="flex-1 p-5">
-                {/* Summary Card */}
-                <View className={`p-6 rounded-3xl mb-6 shadow-sm ${theme === 'dark' ? 'bg-indigo-900/20' : 'bg-white'}`}>
-                    <Text className={`text-center mb-2 font-sans ${theme === 'dark' ? 'text-slate-400' : 'text-secondary-500'}`}>{t('expenses_month')}</Text>
-                    <Text className={`text-center text-4xl font-bold font-sans ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>{totalMonth.toFixed(2)} €</Text>
+                {/* Total and Chart */}
+                <View className="mb-6">
+                    <Text className={`text-sm uppercase font-bold mb-1 ${theme === 'dark' ? 'text-slate-500' : 'text-secondary-500'}`}>Gesamt (Alle Zeit)</Text>
+                    <Text className={`text-3xl font-bold mb-4 ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>{total.toFixed(2)} CHF</Text>
+
+                    {chartData && (
+                        <View className={`p-4 rounded-3xl ${theme === 'dark' ? 'bg-slate-900' : 'bg-white'}`}>
+                            <Text className={`font-bold mb-4 ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>Verlauf (6 Monate)</Text>
+                            <BarChart
+                                data={chartData}
+                                width={screenWidth - 80}
+                                height={220}
+                                yAxisLabel=""
+                                yAxisSuffix=""
+                                chartConfig={{
+                                    backgroundColor: theme === 'dark' ? '#0f172a' : '#ffffff',
+                                    backgroundGradientFrom: theme === 'dark' ? '#0f172a' : '#ffffff',
+                                    backgroundGradientTo: theme === 'dark' ? '#0f172a' : '#ffffff',
+                                    decimalPlaces: 0,
+                                    color: (opacity = 1) => `rgba(139, 92, 246, ${opacity})`,
+                                    labelColor: (opacity = 1) => theme === 'dark' ? `rgba(148, 163, 184, ${opacity})` : `rgba(100, 116, 139, ${opacity})`,
+                                    barPercentage: 0.7,
+                                }}
+                                style={{
+                                    borderRadius: 16
+                                }}
+                                fromZero
+                            />
+                        </View>
+                    )}
                 </View>
 
-                {/* Chart */}
-                {chartData.length > 0 && (
-                    <View className={`p-4 rounded-3xl mb-6 shadow-sm items-center ${theme === 'dark' ? 'bg-slate-900' : 'bg-white'}`}>
-                        <Text className={`text-lg font-bold mb-4 font-sans ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>Verteilung (Gesamt)</Text>
-                        <PieChart
-                            data={chartData}
-                            width={screenWidth - 80}
-                            height={220}
-                            chartConfig={chartConfig}
-                            accessor={"population"}
-                            backgroundColor={"transparent"}
-                            paddingLeft={"15"}
-                            center={[10, 0]}
-                            absolute
-                        />
-                    </View>
-                )}
-
-                {/* List */}
-                <Text className={`text-lg font-bold mb-4 font-sans ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>{t('expenses_history')}</Text>
+                <Text className={`text-sm uppercase font-bold mb-3 ${theme === 'dark' ? 'text-slate-500' : 'text-secondary-500'}`}>Letzte Einträge</Text>
                 {expenses.length === 0 ? (
                     <EmptyState
                         icon="wallet-outline"
-                        title={t('no_expenses')}
-                        actionLabel={t('expenses_add')}
+                        title="Keine Ausgaben"
+                        description="Erfasse Tierarztkosten, Futter und mehr."
+                        actionLabel="Ausgabe hinzufügen"
                         onAction={() => router.push('/expenses/add')}
                     />
                 ) : (
-                    expenses.map((item) => (
-                        <TouchableOpacity
-                            key={item.id}
-                            onLongPress={() => handleDelete(item.id)}
-                            className={`flex-row justify-between items-center p-4 mb-3 rounded-2xl shadow-sm ${theme === 'dark' ? 'bg-slate-900' : 'bg-white'}`}
-                        >
-                            <View className="flex-row items-center space-x-3">
-                                <View className={`h-10 w-10 rounded-full items-center justify-center ${item.category === 'Food' ? 'bg-green-100' :
-                                    item.category === 'Vet' ? 'bg-blue-100' :
-                                        item.category === 'Toys' ? 'bg-yellow-100' : 'bg-gray-100'
-                                    }`}>
-                                    <Ionicons
-                                        name={
-                                            item.category === 'Food' ? 'nutrition' :
-                                                item.category === 'Vet' ? 'medkit' :
-                                                    item.category === 'Toys' ? 'tennisball' : 'pricetag'
-                                        }
-                                        size={20}
-                                        color="#334155"
-                                    />
+                    <View className="pb-10">
+                        {expenses.map(ex => (
+                            <TouchableOpacity
+                                key={ex.id}
+                                onLongPress={() => handleDelete(ex.id)}
+                                className={`p-4 mb-3 rounded-2xl flex-row justify-between items-center border ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-secondary-100'}`}
+                            >
+                                <View className="flex-row items-center">
+                                    <View className={`h-10 w-10 rounded-full items-center justify-center mr-3 ${ex.category === 'Tierarzt' ? 'bg-red-100' :
+                                            ex.category === 'Futter' ? 'bg-orange-100' :
+                                                'bg-purple-100'
+                                        }`}>
+                                        <Ionicons name={
+                                            ex.category === 'Tierarzt' ? 'medkit' :
+                                                ex.category === 'Futter' ? 'nutrition' :
+                                                    'pricetag'
+                                        } size={20} color={
+                                            ex.category === 'Tierarzt' ? '#ef4444' :
+                                                ex.category === 'Futter' ? '#f97316' :
+                                                    '#8b5cf6'
+                                        } />
+                                    </View>
+                                    <View>
+                                        <Text className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>{ex.title}</Text>
+                                        <Text className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-secondary-400'}`}>{ex.date} • {ex.category}</Text>
+                                    </View>
                                 </View>
-                                <View>
-                                    <Text className={`font-bold font-sans ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>{item.title}</Text>
-                                    <Text className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-secondary-400'}`}>{item.date} • {item.category}</Text>
-                                </View>
-                            </View>
-                            <Text className={`font-bold text-lg font-sans ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>{item.amount.toFixed(2)} €</Text>
-                        </TouchableOpacity>
-                    ))
+                                <Text className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>{ex.amount.toFixed(2)}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
                 )}
-                <View className="h-20" />
             </ScrollView>
         </SafeAreaView>
     );

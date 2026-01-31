@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { getDb } from '../../db';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
+import DateTimePickerInput from '../../components/ui/DateTimePickerInput';
 import { setupNotifications, scheduleReminder } from '../../lib/notifications';
 import { CalendarService } from '../../services/CalendarService';
 import { useTheme } from '../../context/ThemeContext';
@@ -21,15 +22,26 @@ export default function AddLogScreen() {
     const [description, setDescription] = useState('');
     const [weightValue, setWeightValue] = useState('');
     const [type, setType] = useState('Notiz');
-    const [date, setDate] = useState(new Date().toLocaleDateString('de-DE'));
+    const [date, setDate] = useState(new Date());
     const [loading, setLoading] = useState(false);
     const [addToCalendar, setAddToCalendar] = useState(false);
     const { theme } = useTheme();
     const { t } = useLanguage();
 
+    // Vet Logic
+    const [vets, setVets] = useState<any[]>([]);
+    const [selectedVetId, setSelectedVetId] = useState<number | null>(null);
+
     useEffect(() => {
         setupNotifications();
+        loadVets();
     }, []);
+
+    const loadVets = async () => {
+        const db = await getDb();
+        const result = await db.getAllAsync<any>('SELECT * FROM vets ORDER BY name ASC');
+        setVets(result || []);
+    };
 
     // Auto-set title for Weight
     useEffect(() => {
@@ -60,9 +72,12 @@ export default function AddLogScreen() {
         try {
             const db = await getDb();
 
-            // Validate and parse date
-            const reminderDate = parseDate(date);
-            const now = new Date();
+            // Format Date for DB
+            const formattedDate = date.toLocaleDateString('de-DE', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
 
             // Prepare final description
             let finalDescription = description;
@@ -75,15 +90,20 @@ export default function AddLogScreen() {
 
             // Save to DB
             await db.runAsync(
-                'INSERT INTO logs (pet_id, title, description, date, type) VALUES (?, ?, ?, ?, ?)',
+                'INSERT INTO logs (pet_id, title, description, date, type, vet_id) VALUES (?, ?, ?, ?, ?, ?)',
                 Number(petId),
                 title,
                 finalDescription,
-                date,
-                type
+                formattedDate,
+                type,
+                type === 'Tierarzt' ? selectedVetId : null
             );
 
             // Schedule Notification if future date
+            // Create a copy for reminder set to 9 AM
+            const reminderDate = new Date(date);
+            const now = new Date();
+
             if (reminderDate > now) {
                 // Schedule for 9 AM on that day
                 reminderDate.setHours(9, 0, 0, 0);
@@ -107,7 +127,11 @@ export default function AddLogScreen() {
             // Sync with Calendar if checked
             if (addToCalendar && reminderDate >= now) {
                 try {
-                    await CalendarService.createEvent(title, reminderDate, description);
+                    await CalendarService.createEvent({
+                        title: title,
+                        startDate: reminderDate,
+                        notes: description
+                    });
                     // Silent success or optional toast
                 } catch (e) {
                     Alert.alert(t('error'), t('event_error'));
@@ -170,11 +194,10 @@ export default function AddLogScreen() {
                     />
                 )}
 
-                <Input
+                <DateTimePickerInput
                     label="Datum"
-                    placeholder="DD.MM.YYYY"
                     value={date}
-                    onChangeText={setDate}
+                    onChange={setDate}
                 />
 
                 <Input
@@ -186,6 +209,32 @@ export default function AddLogScreen() {
                     onChangeText={setDescription}
                     style={{ height: 100, textAlignVertical: 'top' }}
                 />
+
+                {type === 'Tierarzt' && (
+                    <View className="mb-6">
+                        <Text className="text-secondary-700 font-medium mb-2 ml-1">Tierarzt auswählen (Optional)</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row space-x-2">
+                            {vets && vets.length > 0 ? (
+                                vets.map((v) => (
+                                    <TouchableOpacity
+                                        key={v.id}
+                                        onPress={() => setSelectedVetId(selectedVetId === v.id ? null : v.id)}
+                                        className={`px-4 py-2 rounded-full border mr-2 ${selectedVetId === v.id
+                                            ? 'bg-blue-600 border-blue-600'
+                                            : 'bg-white border-secondary-200'
+                                            }`}
+                                    >
+                                        <Text className={selectedVetId === v.id ? 'text-white font-medium' : 'text-secondary-600'}>
+                                            {v.name}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))
+                            ) : (
+                                <Text className="text-secondary-400 italic ml-1">Keine Tierärzte gefunden. Füge einen unter "Notfall" hinzu.</Text>
+                            )}
+                        </ScrollView>
+                    </View>
+                )}
 
                 <View className="flex-row items-center justify-between mb-6 p-4 rounded-xl border border-secondary-200 bg-secondary-50">
                     <View>

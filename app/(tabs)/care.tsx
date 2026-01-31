@@ -8,6 +8,7 @@ import { useCallback, useState } from 'react';
 import { getDb } from '../../db';
 import Button from '../../components/ui/Button';
 import EmptyState from '../../components/ui/EmptyState';
+import * as Notifications from 'expo-notifications';
 import { LayoutAnimation, UIManager, Platform } from 'react-native';
 
 if (Platform.OS === 'android') {
@@ -65,8 +66,8 @@ export default function CareScreen() {
 
             // Load Routines
             // Load Routines
-            const routinesResult = await db.getAllAsync<Routine>(`
-                SELECT routine_times.id, routines.title, routines.type, routine_times.time, pets.name as pet_name
+            const routinesResult = await db.getAllAsync<Routine & { routine_id: number }>(`
+                SELECT routine_times.id, routines.id as routine_id, routines.title, routines.type, routine_times.time, pets.name as pet_name
                 FROM routine_times
                 JOIN routines ON routine_times.routine_id = routines.id
                 LEFT JOIN pets ON routines.pet_id = pets.id
@@ -106,7 +107,24 @@ export default function CareScreen() {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         try {
             const db = await getDb();
-            await db.runAsync('UPDATE medications SET stock = stock - 1 WHERE id = ?', [id]);
+            // Get min_stock and name before update to check threshold
+            const med = meds.find(m => m.id === id);
+            const newStock = currentStock - 1;
+
+            await db.runAsync('UPDATE medications SET stock = ? WHERE id = ?', [newStock, id]);
+
+            // Check for Smart Reminder
+            if (med && newStock <= (med.min_stock || 3)) {
+                await Notifications.scheduleNotificationAsync({
+                    content: {
+                        title: "Medikament fast leer!",
+                        body: `Nur noch ${newStock} Stück von ${med.name} übrig.`,
+                        sound: true,
+                    },
+                    trigger: null, // show immediately
+                });
+            }
+
             loadData(); // Reload to update UI
         } catch (e) {
             console.error(e);
@@ -136,6 +154,12 @@ export default function CareScreen() {
                     >
                         <Ionicons name="add" size={24} color="#6d28d9" />
                     </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={() => router.push('/expenses')}
+                        className="h-10 w-10 bg-purple-100 rounded-full items-center justify-center active:bg-purple-200"
+                    >
+                        <Ionicons name="wallet" size={20} color="#8b5cf6" />
+                    </TouchableOpacity>
                 </View>
             </View>
 
@@ -161,10 +185,10 @@ export default function CareScreen() {
                             onAction={() => router.push('/add-routine')}
                         />
                     ) : (
-                        routines.map(routine => (
+                        routines.map((routine: any) => (
                             <TouchableOpacity
                                 key={routine.id}
-                                onPress={() => router.push(`/routine/${routine.id}`)}
+                                onPress={() => router.push(`/routine/${routine.routine_id}`)}
                                 className="bg-white mb-3 rounded-2xl p-4 shadow-sm border border-secondary-100 flex-row items-center active:bg-secondary-50 dark:bg-slate-900 dark:border-slate-800"
                             >
                                 <View className={`h-10 w-10 rounded-full items-center justify-center mr-3 ${routine.type === 'food' ? 'bg-orange-100 dark:bg-orange-900/50' :

@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { getDb } from '../../db';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
+import DateTimePickerInput from '../../components/ui/DateTimePickerInput';
 import { Pet } from '../../types';
 import * as Notifications from 'expo-notifications';
 
@@ -20,6 +21,8 @@ export default function EditRoutineScreen() {
     const [title, setTitle] = useState('');
     const [times, setTimes] = useState<string[]>([]);
     const [type, setType] = useState('food');
+    const [frequency, setFrequency] = useState('daily');
+    const [date, setDate] = useState(new Date());
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -41,6 +44,11 @@ export default function EditRoutineScreen() {
                 setTitle(routine.title);
                 setType(routine.type);
                 setSelectedPetId(routine.pet_id);
+                setFrequency(routine.frequency || 'daily');
+                if (routine.date) {
+                    const [day, month, year] = routine.date.split('.');
+                    setDate(new Date(Number(year), Number(month) - 1, Number(day)));
+                }
 
                 // Load Times
                 const timesResult = await db.getAllAsync<any>('SELECT time FROM routine_times WHERE routine_id = ?', [routineId]);
@@ -113,10 +121,15 @@ export default function EditRoutineScreen() {
         try {
             const db = await getDb();
 
+            // Format Date if once
+            const dateStr = frequency === 'once'
+                ? date.toLocaleDateString('de-DE', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                : null;
+
             // Update Routine
             await db.runAsync(
-                `UPDATE routines SET pet_id = ?, title = ?, type = ?, time = ? WHERE id = ?`,
-                [selectedPetId, title, type, times[0] || '', routineId]
+                `UPDATE routines SET pet_id = ?, title = ?, type = ?, time = ?, frequency = ?, date = ? WHERE id = ?`,
+                [selectedPetId, title, type, times[0] || '', frequency, dateStr, routineId]
             );
 
             // Update Times (Delete All & Re-insert)
@@ -132,19 +145,37 @@ export default function EditRoutineScreen() {
                 );
 
                 const [hours, minutes] = time.split(':').map(Number);
-                await Notifications.scheduleNotificationAsync({
-                    content: {
-                        title: `Routine: ${title}`,
-                        body: `Zeit für ${title} (${petName})`,
-                        sound: true,
-                        data: { routineId: routineId }
-                    },
-                    trigger: {
+
+                let trigger: any;
+
+                if (frequency === 'daily') {
+                    trigger = {
+                        type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
                         hour: hours,
                         minute: minutes,
                         repeats: true,
-                    } as any,
-                });
+                    };
+                } else {
+                    // Once
+                    const triggerDate = new Date(date);
+                    triggerDate.setHours(hours, minutes, 0, 0);
+
+                    if (triggerDate > new Date()) {
+                        trigger = { date: triggerDate };
+                    }
+                }
+
+                if (trigger) {
+                    await Notifications.scheduleNotificationAsync({
+                        content: {
+                            title: `Routine: ${title}`,
+                            body: `Zeit für ${title} (${petName})`,
+                            sound: true,
+                            data: { routineId: routineId }
+                        },
+                        trigger: trigger,
+                    });
+                }
             }
 
             router.back();
@@ -206,28 +237,40 @@ export default function EditRoutineScreen() {
                     />
                 </View>
 
+                {/* Frequency Removed due to stability issues */}
+
                 {/* Times Section */}
                 <View className="mb-6">
                     <Text className="text-secondary-900 font-bold mb-2 font-sans">Uhrzeiten</Text>
                     <View className="bg-white p-4 rounded-2xl border border-secondary-100 shadow-sm">
-                        {times.map((t, index) => (
-                            <View key={index} className="flex-row items-center mb-3">
-                                <View className="flex-1 mr-3">
-                                    <Input
-                                        placeholder="HH:MM"
-                                        value={t}
-                                        onChangeText={(text) => updateTime(text, index)}
-                                        keyboardType="numbers-and-punctuation"
-                                    />
+                        {times.map((t, index) => {
+                            // Parse HH:MM to Date for picker
+                            const [h, m] = t.split(':').map(Number);
+                            const date = new Date();
+                            date.setHours(h || 0, m || 0, 0, 0);
+
+                            return (
+                                <View key={index} className="flex-row items-center mb-3">
+                                    <View className="flex-1 mr-3">
+                                        <DateTimePickerInput
+                                            value={date}
+                                            mode="time"
+                                            onChange={(newDate) => {
+                                                const timeStr = newDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+                                                updateTime(timeStr, index);
+                                            }}
+                                            containerClassName="mb-0"
+                                        />
+                                    </View>
+                                    <TouchableOpacity
+                                        onPress={() => removeTime(index)}
+                                        className="bg-red-50 p-3 rounded-xl ml-2"
+                                    >
+                                        <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                                    </TouchableOpacity>
                                 </View>
-                                <TouchableOpacity
-                                    onPress={() => removeTime(index)}
-                                    className="bg-red-50 p-2 rounded-full"
-                                >
-                                    <Ionicons name="trash-outline" size={20} color="#ef4444" />
-                                </TouchableOpacity>
-                            </View>
-                        ))}
+                            );
+                        })}
                         <Button
                             label="Zeit hinzufügen +"
                             variant="secondary"

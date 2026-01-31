@@ -6,6 +6,7 @@ export interface Pet {
     weight: number;
     image_uri?: string;
     species?: string;
+    target_weight?: number;
 }
 
 export interface Log {
@@ -15,6 +16,7 @@ export interface Log {
     date: string;
     type: string;
     pet_id: number;
+    vet_id?: number | null;
 }
 
 export interface ReminderLog extends Log {

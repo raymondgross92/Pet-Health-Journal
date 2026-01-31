@@ -28,8 +28,6 @@ export async function scheduleReminder(title: string, body: string, date: Date) 
             body: body,
             sound: true,
         },
-        trigger: {
-            date: date, // Single date trigger
-        } as any,
+        trigger: date as any,
     });
 }

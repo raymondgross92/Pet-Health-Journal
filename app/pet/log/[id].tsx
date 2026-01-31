@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { getDb } from '../../../db';
 import Input from '../../../components/ui/Input';
 import Button from '../../../components/ui/Button';
+import DateTimePickerInput from '../../../components/ui/DateTimePickerInput';
 import { Log } from '../../../types';
 import { CalendarService } from '../../../services/CalendarService';
 import { useLanguage } from '../../../context/LanguageContext';
@@ -21,7 +22,7 @@ export default function EditLogScreen() {
     const [description, setDescription] = useState('');
     const [weightValue, setWeightValue] = useState('');
     const [type, setType] = useState('Notiz');
-    const [date, setDate] = useState('');
+    const [date, setDate] = useState(new Date());
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -40,7 +41,10 @@ export default function EditLogScreen() {
 
             if (result) {
                 setTitle(result.title);
-                setDate(result.date);
+                // Parse DD.MM.YYYY
+                const [day, month, year] = result.date.split('.');
+                setDate(new Date(Number(year), Number(month) - 1, Number(day)));
+
                 setType(result.type);
 
                 if (result.type === 'Gewicht') {
@@ -92,13 +96,15 @@ export default function EditLogScreen() {
 
     const handleExportToCalendar = async () => {
         try {
-            const [day, month, year] = date.split('.');
-            // Note: Month in JS Date is 0-indexed
-            const eventDate = new Date(Number(year), Number(month) - 1, Number(day));
+            const eventDate = new Date(date);
             // Set time to something reasonable if not specified, e.g. 9 AM
             eventDate.setHours(9, 0, 0, 0);
 
-            await CalendarService.createEvent(title, eventDate, description);
+            await CalendarService.createEvent({
+                title: title,
+                startDate: eventDate,
+                notes: description
+            });
             Alert.alert(t('success'), t('event_created'));
         } catch (e) {
             console.error(e);
@@ -134,7 +140,11 @@ export default function EditLogScreen() {
                 'UPDATE logs SET title = ?, description = ?, date = ? WHERE id = ?',
                 title,
                 finalDescription,
-                date,
+                date.toLocaleDateString('de-DE', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                }),
                 Number(id)
             );
 
@@ -200,11 +210,10 @@ export default function EditLogScreen() {
                     />
                 )}
 
-                <Input
+                <DateTimePickerInput
                     label="Datum"
-                    placeholder="DD.MM.YYYY"
                     value={date}
-                    onChangeText={setDate}
+                    onChange={setDate}
                 />
 
                 <Input

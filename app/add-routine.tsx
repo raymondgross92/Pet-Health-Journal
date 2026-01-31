@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -6,20 +6,26 @@ import { useState, useEffect } from 'react';
 import { getDb } from '../db';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
+import DateTimePickerInput from '../components/ui/DateTimePickerInput';
 import { Pet } from '../types';
 import * as Notifications from 'expo-notifications';
 
 export default function AddRoutineScreen() {
     const router = useRouter();
     const [pets, setPets] = useState<Pet[]>([]);
-    const [selectedPetId, setSelectedPetId] = useState<number | null>(null);
+    const [selectedPetIds, setSelectedPetIds] = useState<number[]>([]);
 
     const [title, setTitle] = useState('');
-    const [times, setTimes] = useState<string[]>(['08:00']);
+    const [times, setTimes] = useState<Date[]>([new Date()]);
     const [type, setType] = useState('food'); // food, walk, hygiene, other
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         loadPets();
+        // Initialize default time to 08:00
+        const d = new Date();
+        d.setHours(8, 0, 0, 0);
+        setTimes([d]);
     }, []);
 
     const loadPets = async () => {
@@ -27,14 +33,25 @@ export default function AddRoutineScreen() {
             const db = await getDb();
             const result = await db.getAllAsync<Pet>('SELECT * FROM pets ORDER BY name ASC');
             setPets(result);
-            if (result.length > 0) setSelectedPetId(result[0].id);
+            if (result.length > 0) setSelectedPetIds([result[0].id]);
         } catch (e) {
             console.error(e);
         }
     };
 
+    const togglePet = (id: number) => {
+        if (selectedPetIds.includes(id)) {
+            // Prevent deselecting the last one? Or allow empty? Better allow but validation in save
+            setSelectedPetIds(selectedPetIds.filter(pid => pid !== id));
+        } else {
+            setSelectedPetIds([...selectedPetIds, id]);
+        }
+    };
+
     const addTime = () => {
-        setTimes([...times, "12:00"]);
+        const d = new Date();
+        d.setHours(12, 0, 0, 0);
+        setTimes([...times, d]);
     };
 
     const removeTime = (index: number) => {
@@ -43,60 +60,71 @@ export default function AddRoutineScreen() {
         setTimes(newTimes);
     };
 
-    const updateTime = (text: string, index: number) => {
+    const updateTime = (date: Date, index: number) => {
         const newTimes = [...times];
-        newTimes[index] = text;
+        newTimes[index] = date;
         setTimes(newTimes);
     };
 
     const handleSave = async () => {
         if (!title.trim()) {
-            Alert.alert("Fehler", "Bitte gib einen Titel ein (z.B. Füttern).");
+            Alert.alert('Fehler', 'Bitte gib einen Titel an.');
+            return;
+        }
+        if (selectedPetIds.length === 0) {
+            Alert.alert('Fehler', 'Bitte wähle mindestens ein Haustier.');
             return;
         }
 
+        setLoading(true);
         try {
             const db = await getDb();
-            // Insert Routine (store 1st time as fallback/primary)
-            const result = await db.runAsync(
-                `INSERT INTO routines (pet_id, title, type, time) VALUES (?, ?, ?, ?)`,
-                [selectedPetId, title, type, times[0] || '']
-            );
 
-            const routineId = result.lastInsertRowId;
-            const petName = pets.find(p => p.id === selectedPetId)?.name || '';
-
-            // Process Times
-            for (const time of times) {
-                // Save to DB
-                await db.runAsync(
-                    'INSERT INTO routine_times (routine_id, time) VALUES (?, ?)',
-                    [routineId, time]
+            // Iterate over selected pets to create a routine for each
+            for (const selectedPetId of selectedPetIds) {
+                // Insert Routine (Daily by default)
+                const result = await db.runAsync(
+                    'INSERT INTO routines (pet_id, title, type, frequency, enabled) VALUES (?, ?, ?, ?, 1)',
+                    selectedPetId, title, type, 'daily'
                 );
 
-                // Schedule Notification
-                const [hours, minutes] = time.split(':').map(Number);
+                const routineId = result.lastInsertRowId;
+                const petName = pets.find(p => p.id === selectedPetId)?.name || 'Unbekanntes Tier';
 
-                await Notifications.scheduleNotificationAsync({
-                    content: {
-                        title: `Routine: ${title}`,
-                        body: `Zeit für ${title} (${petName})`,
-                        sound: true,
-                        data: { routineId }
-                    },
-                    trigger: {
-                        type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
-                        hour: hours,
-                        minute: minutes,
-                        repeats: true,
-                    },
-                });
+                // Insert Times and schedule notifications
+                for (const time of times) {
+                    const timeStr = time.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+                    await db.runAsync(
+                        'INSERT INTO routine_times (routine_id, time) VALUES (?, ?)',
+                        routineId, timeStr
+                    );
+
+                    // Notification Logic (Daily)
+                    const [hours, minutes] = timeStr.split(':').map(Number);
+
+                    await Notifications.scheduleNotificationAsync({
+                        content: {
+                            title: `Routine: ${title}`,
+                            body: `Zeit für ${title} (${petName})`,
+                            sound: true,
+                            data: { routineId: routineId },
+                        },
+                        trigger: {
+                            hour: hours,
+                            minute: minutes,
+                            repeats: true,
+                        } as any,
+                    });
+                }
             }
 
             router.back();
+
         } catch (e) {
             console.error(e);
-            Alert.alert("Fehler", "Konnte Routine nicht speichern.");
+            Alert.alert('Fehler', 'Konnte Routine nicht speichern.');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -122,19 +150,22 @@ export default function AddRoutineScreen() {
             <ScrollView className="flex-1 px-5 pt-6">
 
                 {/* Pet Selection */}
-                <Text className="text-secondary-900 font-bold mb-2 font-sans">Für welches Tier?</Text>
+                <Text className="text-secondary-900 font-bold mb-2 font-sans">Für welche Tiere?</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
-                    {pets.map(pet => (
-                        <TouchableOpacity
-                            key={pet.id}
-                            onPress={() => setSelectedPetId(pet.id)}
-                            className={`mr-3 px-4 py-2 rounded-full border ${selectedPetId === pet.id ? 'bg-primary-500 border-primary-500' : 'bg-white border-secondary-200'}`}
-                        >
-                            <Text className={`font-bold font-sans ${selectedPetId === pet.id ? 'text-white' : 'text-secondary-600'}`}>
-                                {pet.name}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
+                    {pets.map(pet => {
+                        const isSelected = selectedPetIds.includes(pet.id);
+                        return (
+                            <TouchableOpacity
+                                key={pet.id}
+                                onPress={() => togglePet(pet.id)}
+                                className={`mr-3 px-4 py-2 rounded-full border ${isSelected ? 'bg-primary-500 border-primary-500' : 'bg-white border-secondary-200'}`}
+                            >
+                                <Text className={`font-bold font-sans ${isSelected ? 'text-white' : 'text-secondary-600'}`}>
+                                    {pet.name}
+                                </Text>
+                            </TouchableOpacity>
+                        );
+                    })}
                 </ScrollView>
 
                 <Text className="text-secondary-900 font-bold mb-3 font-sans">Was steht an?</Text>
@@ -162,16 +193,16 @@ export default function AddRoutineScreen() {
                         {times.map((t, index) => (
                             <View key={index} className="flex-row items-center mb-3">
                                 <View className="flex-1 mr-3">
-                                    <Input
-                                        placeholder="HH:MM"
+                                    <DateTimePickerInput
                                         value={t}
-                                        onChangeText={(text) => updateTime(text, index)}
-                                        keyboardType="numbers-and-punctuation"
+                                        mode="time"
+                                        onChange={(date) => updateTime(date, index)}
+                                        containerClassName="mb-0"
                                     />
                                 </View>
                                 <TouchableOpacity
                                     onPress={() => removeTime(index)}
-                                    className="bg-red-50 p-2 rounded-full"
+                                    className="bg-red-50 p-3 rounded-xl ml-2"
                                 >
                                     <Ionicons name="trash-outline" size={20} color="#ef4444" />
                                 </TouchableOpacity>
@@ -187,9 +218,11 @@ export default function AddRoutineScreen() {
                 </View>
 
                 <Button
-                    label="Speichern & Erinnerung aktivieren"
+                    label={loading ? "Speichert..." : "Speichern & Erinnerung aktivieren"}
                     onPress={handleSave}
+                    disabled={loading}
                 />
+                <View className="h-10" />
             </ScrollView>
         </SafeAreaView>
     );

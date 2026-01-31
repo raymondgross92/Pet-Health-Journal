@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity, Alert, Switch } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert, Switch, Linking, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -6,11 +6,13 @@ import { useState, useEffect } from 'react';
 import { getDb } from '../../db';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function EditVetScreen() {
     const router = useRouter();
     const { id } = useLocalSearchParams();
     const vetId = Array.isArray(id) ? id[0] : id;
+    const { t } = useLanguage();
 
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
@@ -91,7 +93,7 @@ export default function EditVetScreen() {
                     <TouchableOpacity onPress={() => router.back()} className="mr-4">
                         <Ionicons name="arrow-back" size={24} color="#0f172a" />
                     </TouchableOpacity>
-                    <Text className="text-xl font-bold text-secondary-900 font-sans">Tierarzt bearbeiten</Text>
+                    <Text className="text-xl font-bold text-secondary-900 font-sans">{t('vet_edit')}</Text>
                 </View>
                 <TouchableOpacity onPress={handleDelete}>
                     <Ionicons name="trash-outline" size={24} color="#ef4444" />
@@ -103,10 +105,27 @@ export default function EditVetScreen() {
                 <Input label="Telefon" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
                 <Input label="Adresse" value={address} onChangeText={setAddress} />
 
+                {address ? (
+                    <TouchableOpacity
+                        onPress={() => {
+                            const query = encodeURIComponent(address);
+                            const url = Platform.select({
+                                ios: `maps:0,0?q=${query}`,
+                                android: `geo:0,0?q=${query}`
+                            });
+                            Linking.openURL(url!);
+                        }}
+                        className="flex-row items-center mb-6 bg-blue-50 p-3 rounded-xl border border-blue-100"
+                    >
+                        <Ionicons name="map" size={20} color="#3b82f6" />
+                        <Text className="ml-2 text-blue-600 font-bold">{t('open_maps')}</Text>
+                    </TouchableOpacity>
+                ) : null}
+
                 <View className="flex-row justify-between items-center bg-secondary-50 p-4 rounded-xl mb-6 border border-secondary-100">
                     <View>
-                        <Text className="text-secondary-900 font-bold font-sans">Notfall-Kontakt?</Text>
-                        <Text className="text-secondary-500 text-xs font-sans">Wird rot hervorgehoben</Text>
+                        <Text className="text-secondary-900 font-bold font-sans">{t('emergency_contact')}</Text>
+                        <Text className="text-secondary-500 text-xs font-sans">{t('highlighted_red')}</Text>
                     </View>
                     <Switch
                         value={isEmergency}
@@ -118,6 +137,21 @@ export default function EditVetScreen() {
                 <Input label="Notizen" value={notes} onChangeText={setNotes} multiline numberOfLines={3} />
 
                 <Button label="Speichern" onPress={handleSave} className="mt-4" />
+
+                <TouchableOpacity
+                    onPress={() => {
+                        const query = encodeURIComponent("Tierarzt Notdienst");
+                        const url = Platform.select({
+                            ios: `maps:0,0?q=${query}`,
+                            android: `geo:0,0?q=${query}`
+                        });
+                        Linking.openURL(url!);
+                    }}
+                    className="mt-6 flex-row justify-center items-center"
+                >
+                    <Ionicons name="search" size={16} color="#ef4444" />
+                    <Text className="text-red-500 font-bold ml-2">Notdienst in der Nähe suchen</Text>
+                </TouchableOpacity>
             </ScrollView>
         </SafeAreaView>
     );

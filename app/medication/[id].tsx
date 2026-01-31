@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { getDb } from '../../db';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
+import DateTimePickerInput from '../../components/ui/DateTimePickerInput';
 import { Pet } from '../../types';
 import * as Notifications from 'expo-notifications';
 
@@ -185,17 +186,40 @@ export default function EditMedicationScreen() {
                 <View className="mb-6">
                     <Text className="text-secondary-900 font-bold mb-2 font-sans">Erinnerungen</Text>
                     <View className="bg-white p-4 rounded-2xl border border-secondary-100 shadow-sm">
-                        {times.map((time, index) => (
-                            <View key={index} className="flex-row items-center mb-3">
-                                <View className="flex-1 mr-3">
-                                    <Input value={time} onChangeText={(t) => updateTime(t, index)} placeholder="HH:MM" />
+                        {times.map((t, index) => {
+                            // Parse HH:MM to Date for picker
+                            const [h, m] = t.split(':').map(Number);
+                            const date = new Date();
+                            date.setHours(h || 0, m || 0, 0, 0);
+
+                            return (
+                                <View key={index} className="flex-row items-center mb-3">
+                                    <View className="flex-1 mr-3">
+                                        <DateTimePickerInput
+                                            value={date}
+                                            mode="time"
+                                            onChange={(newDate) => {
+                                                const timeStr = newDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+                                                updateTime(timeStr, index);
+                                            }}
+                                            containerClassName="mb-0"
+                                        />
+                                    </View>
+                                    <TouchableOpacity
+                                        onPress={() => removeTime(index)}
+                                        className="bg-red-50 p-3 rounded-xl ml-2"
+                                    >
+                                        <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                                    </TouchableOpacity>
                                 </View>
-                                <TouchableOpacity onPress={() => removeTime(index)} className="bg-red-50 p-2 rounded-full">
-                                    <Ionicons name="trash-outline" size={20} color="#ef4444" />
-                                </TouchableOpacity>
-                            </View>
-                        ))}
-                        <Button label="Zeit hinzufügen +" variant="secondary" size="sm" onPress={addTime} />
+                            );
+                        })}
+                        <Button
+                            label="Zeit hinzufügen +"
+                            variant="secondary"
+                            size="sm"
+                            onPress={addTime}
+                        />
                     </View>
                 </View>
 

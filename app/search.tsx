@@ -1,193 +1,145 @@
-import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, SectionList, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState, useCallback } from 'react';
-import { getDb } from '../db';
-import { useLanguage } from '../context/LanguageContext';
+import { Ionicons } from '@expo/vector-icons';
+import { useState, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
-import { Pet, Log } from '../types';
-
-type SearchResult = {
-    type: 'pet' | 'log' | 'medication' | 'vet';
-    id: number;
-    title: string;
-    description: string;
-    date?: string;
-    subTitle?: string;
-};
+import { getDb } from '../db';
 
 export default function SearchScreen() {
     const router = useRouter();
-    const { t } = useLanguage();
     const { theme } = useTheme();
     const [query, setQuery] = useState('');
-    const [results, setResults] = useState<SearchResult[]>([]);
+    const [results, setResults] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
 
-    const performSearch = useCallback(async (text: string) => {
-        setQuery(text);
-        if (text.length < 2) {
+    useEffect(() => {
+        if (query.length < 2) {
             setResults([]);
             return;
         }
 
+        const timer = setTimeout(() => {
+            performSearch(query);
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [query]);
+
+    const performSearch = async (text: string) => {
         setLoading(true);
         try {
             const db = await getDb();
             const searchTerm = `%${text}%`;
-            const searchResults: SearchResult[] = [];
 
-            // 1. Search Pets
-            const pets = await db.getAllAsync<Pet>(
-                `SELECT * FROM pets WHERE name LIKE ? OR breed LIKE ?`,
-                searchTerm, searchTerm
-            );
-            pets.forEach(p => searchResults.push({
-                type: 'pet',
-                id: p.id,
-                title: p.name,
-                description: `${p.species} - ${p.breed || ''}`,
-                subTitle: 'Haustier'
-            }));
+            // Parallel Queries
+            const [pets, logs, meds, expenses, vets] = await Promise.all([
+                db.getAllAsync<any>('SELECT id, name, breed FROM pets WHERE name LIKE ? OR breed LIKE ?', [searchTerm, searchTerm]),
+                db.getAllAsync<any>('SELECT id, title, description, date, type FROM logs WHERE title LIKE ? OR description LIKE ?', [searchTerm, searchTerm]),
+                db.getAllAsync<any>('SELECT id, name, notes FROM medications WHERE name LIKE ? OR notes LIKE ?', [searchTerm, searchTerm]),
+                db.getAllAsync<any>('SELECT id, title, category, amount, date FROM expenses WHERE title LIKE ? OR category LIKE ?', [searchTerm, searchTerm]),
+                db.getAllAsync<any>('SELECT id, name, address FROM vets WHERE name LIKE ? OR address LIKE ?', [searchTerm, searchTerm])
+            ]);
 
-            // 2. Search Logs
-            const logs = await db.getAllAsync<Log>(
-                `SELECT l.*, p.name as pet_name FROM logs l LEFT JOIN pets p ON l.pet_id = p.id WHERE l.title LIKE ? OR l.description LIKE ?`,
-                searchTerm, searchTerm
-            );
-            logs.forEach((l: any) => searchResults.push({
-                type: 'log',
-                id: l.id,
-                title: l.title,
-                description: l.description,
-                date: l.date,
-                subTitle: `${l.type} (${l.pet_name})`
-            }));
+            const sections = [];
 
-            // 3. Search Medications
-            const meds = await db.getAllAsync<any>(
-                `SELECT m.*, p.name as pet_name FROM medications m LEFT JOIN pets p ON m.pet_id = p.id WHERE m.name LIKE ?`,
-                searchTerm
-            );
-            meds.forEach((m: any) => searchResults.push({
-                type: 'medication',
-                id: m.id,
-                title: m.name,
-                description: `${m.dosage} - ${m.stock} übrig`,
-                subTitle: `Medikament (${m.pet_name})`
-            }));
+            if (pets.length > 0) sections.push({ title: 'Haustiere', data: pets.map(p => ({ ...p, type: 'pet' })) });
+            if (logs.length > 0) sections.push({ title: 'Tagebuch', data: logs.map(l => ({ ...l, type: 'log' })) });
+            if (meds.length > 0) sections.push({ title: 'Medikamente', data: meds.map(m => ({ ...m, type: 'med' })) });
+            if (expenses.length > 0) sections.push({ title: 'Ausgaben', data: expenses.map(e => ({ ...e, type: 'expense' })) });
+            if (vets.length > 0) sections.push({ title: 'Tierärzte', data: vets.map(v => ({ ...v, type: 'vet' })) });
 
-            // 4. Search Vets
-            const vets = await db.getAllAsync<any>(
-                `SELECT * FROM vets WHERE name LIKE ?`,
-                searchTerm
-            );
-            vets.forEach((v: any) => searchResults.push({
-                type: 'vet',
-                id: v.id,
-                title: v.name,
-                description: v.phone || v.address || '',
-                subTitle: 'Tierarzt'
-            }));
+            setResults(sections);
 
-            setResults(searchResults);
         } catch (e) {
             console.error(e);
         } finally {
             setLoading(false);
         }
-    }, []);
+    };
 
-    const handlePress = (item: SearchResult) => {
-        if (item.type === 'pet') {
-            router.push({ pathname: '/pet/[id]', params: { id: item.id } });
-        } else if (item.type === 'log') {
-            router.push({ pathname: '/pet/log/[id]', params: { id: item.id } });
+    const handlePress = (item: any) => {
+        switch (item.type) {
+            case 'pet': router.push(`/pet/${item.id}`); break;
+            case 'log': router.push(`/pet/log/${item.id}`); break;
+            case 'med': router.push(`/medication/${item.id}`); break;
+            case 'expense': router.push(`/expenses`); break; // Expenses list doesn't have detail yet, just go to list
+            case 'vet': router.push(`/vet/${item.id}`); break;
         }
-        // Medication/Vet details not yet implemented, maybe navigate to list?
-        // keeping it simple for now
     };
 
     return (
-        <SafeAreaView className={`flex-1 ${theme === 'dark' ? 'bg-slate-950' : 'bg-white'}`}>
+        <SafeAreaView className={`flex-1 ${theme === 'dark' ? 'bg-slate-950' : 'bg-secondary-50'}`}>
             <View className={`px-5 py-4 border-b flex-row items-center space-x-3 ${theme === 'dark' ? 'border-slate-800' : 'border-secondary-100'}`}>
                 <TouchableOpacity onPress={() => router.back()}>
-                    <Ionicons name="arrow-back" size={24} color={theme === 'dark' ? 'white' : '#0f172a'} />
+                    <Ionicons name="arrow-back" size={24} color={theme === 'dark' ? 'white' : 'black'} />
                 </TouchableOpacity>
-
-                <View className={`flex-1 flex-row items-center px-4 py-2 rounded-xl ${theme === 'dark' ? 'bg-slate-900' : 'bg-secondary-50'}`}>
-                    <Ionicons name="search" size={20} color={theme === 'dark' ? '#94a3b8' : '#64748b'} />
+                <View className={`flex-1 flex-row items-center px-4 h-12 rounded-xl ${theme === 'dark' ? 'bg-slate-900' : 'bg-white'}`}>
+                    <Ionicons name="search" size={20} color="#94a3b8" />
                     <TextInput
-                        className={`flex-1 ml-2 font-sans ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}
-                        placeholder={t('search_placeholder')}
-                        placeholderTextColor={theme === 'dark' ? '#64748b' : '#94a3b8'}
-                        value={query}
-                        onChangeText={performSearch}
+                        className={`flex-1 ml-3 font-medium ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}
+                        placeholder="Suchen..."
+                        placeholderTextColor="#94a3b8"
                         autoFocus
+                        value={query}
+                        onChangeText={setQuery}
                     />
                     {query.length > 0 && (
-                        <TouchableOpacity onPress={() => performSearch('')}>
-                            <Ionicons name="close-circle" size={20} color={theme === 'dark' ? '#64748b' : '#94a3b8'} />
+                        <TouchableOpacity onPress={() => setQuery('')}>
+                            <Ionicons name="close-circle" size={20} color="#cbd5e1" />
                         </TouchableOpacity>
                     )}
                 </View>
             </View>
 
             {loading ? (
-                <View className="mt-10">
-                    <ActivityIndicator size="small" color="#059669" />
+                <View className="flex-1 items-center justify-center">
+                    <ActivityIndicator size="large" color="#059669" />
                 </View>
             ) : (
-                <ScrollView className="flex-1 px-5 pt-4" keyboardShouldPersistTaps="handled">
-                    {results.length === 0 && query.length >= 2 && (
-                        <Text className={`text-center mt-10 ${theme === 'dark' ? 'text-slate-500' : 'text-secondary-500'}`}>{t('search_no_results')}</Text>
+                <SectionList
+                    sections={results}
+                    keyExtractor={(item, index) => item.id.toString() + index}
+                    contentContainerStyle={{ padding: 20 }}
+                    renderSectionHeader={({ section: { title } }) => (
+                        <Text className={`text-xs font-bold uppercase mb-2 mt-4 ${theme === 'dark' ? 'text-slate-500' : 'text-secondary-500'}`}>{title}</Text>
                     )}
-
-                    {results.map((item, index) => (
+                    renderItem={({ item }) => (
                         <TouchableOpacity
-                            key={`${item.type}-${item.id}`}
                             onPress={() => handlePress(item)}
-                            className={`flex-row items-center p-4 mb-3 rounded-2xl border shadow-sm ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-secondary-100'}`}
+                            className={`p-4 mb-3 rounded-xl border flex-row items-center ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-secondary-100'}`}
                         >
-                            <View className={`h-10 w-10 rounded-full items-center justify-center mr-4 ${item.type === 'pet' ? (theme === 'dark' ? 'bg-indigo-900' : 'bg-indigo-100') :
-                                    item.type === 'log' ? (theme === 'dark' ? 'bg-green-900' : 'bg-green-100') :
-                                        item.type === 'medication' ? (theme === 'dark' ? 'bg-blue-900' : 'bg-blue-100') :
-                                            (theme === 'dark' ? 'bg-orange-900' : 'bg-orange-100')
+                            <View className={`h-10 w-10 rounded-full items-center justify-center mr-3 ${item.type === 'pet' ? 'bg-indigo-100' :
+                                    item.type === 'log' ? 'bg-blue-100' :
+                                        item.type === 'med' ? 'bg-red-100' :
+                                            item.type === 'vet' ? 'bg-green-100' : 'bg-orange-100'
                                 }`}>
-                                <Ionicons
-                                    name={
-                                        item.type === 'pet' ? 'paw' :
-                                            item.type === 'log' ? 'document-text' :
-                                                item.type === 'medication' ? 'medkit' :
-                                                    'people'
-                                    }
-                                    size={20}
-                                    color={
-                                        item.type === 'pet' ? '#6366f1' :
-                                            item.type === 'log' ? '#10b981' :
-                                                item.type === 'medication' ? '#3b82f6' :
-                                                    '#f97316'
-                                    }
-                                />
+                                <Ionicons name={
+                                    item.type === 'pet' ? 'paw' :
+                                        item.type === 'log' ? 'book' :
+                                            item.type === 'med' ? 'medkit' :
+                                                item.type === 'vet' ? 'people' : 'wallet'
+                                } size={20} color={
+                                    item.type === 'pet' ? '#6366f1' :
+                                        item.type === 'log' ? '#3b82f6' :
+                                            item.type === 'med' ? '#ef4444' :
+                                                item.type === 'vet' ? '#22c55e' : '#f97316'
+                                } />
                             </View>
-                            <View className="flex-1">
-                                <View className="flex-row justify-between">
-                                    <Text className={`text-xs font-bold uppercase mb-0.5 ${theme === 'dark' ? 'text-slate-500' : 'text-secondary-400'}`}>{item.subTitle}</Text>
-                                    {item.date && (
-                                        <Text className={`text-xs ${theme === 'dark' ? 'text-slate-600' : 'text-secondary-400'}`}>{item.date}</Text>
-                                    )}
-                                </View>
-                                <Text className={`font-bold text-base font-sans ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>{item.title}</Text>
-                                {item.description ? (
-                                    <Text numberOfLines={1} className={`text-sm mt-0.5 ${theme === 'dark' ? 'text-slate-400' : 'text-secondary-500'}`}>{item.description}</Text>
-                                ) : null}
+                            <View>
+                                <Text className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>{item.name || item.title}</Text>
+                                <Text numberOfLines={1} className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-secondary-400'}`}>
+                                    {item.description || item.breed || item.notes || item.date}
+                                </Text>
                             </View>
-                            <Ionicons name="chevron-forward" size={20} color={theme === 'dark' ? '#475569' : '#cbd5e1'} />
                         </TouchableOpacity>
-                    ))}
-                    <View className="h-10" />
-                </ScrollView>
+                    )}
+                    ListEmptyComponent={
+                        query.length > 2 ? (
+                            <Text className={`text-center mt-10 ${theme === 'dark' ? 'text-slate-500' : 'text-secondary-400'}`}>Keine Ergebnisse gefunden.</Text>
+                        ) : null
+                    }
+                />
             )}
         </SafeAreaView>
     );

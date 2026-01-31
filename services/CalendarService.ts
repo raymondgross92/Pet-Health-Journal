@@ -22,7 +22,7 @@ export const CalendarService = {
         return defaultCalendar ? defaultCalendar.id : null;
     },
 
-    async createEvent(title: string, date: Date, notes?: string) {
+    async createEvent(config: { title: string; startDate: Date; endDate?: Date; location?: string; notes?: string }) {
         try {
             const hasPermission = await this.requestPermissions();
             if (!hasPermission) {
@@ -36,17 +36,16 @@ export const CalendarService = {
                 return null;
             }
 
-            const startDate = new Date(date);
-            // Default check duration 1 hour
-            const endDate = new Date(date);
-            endDate.setHours(endDate.getHours() + 1);
+            const startDate = new Date(config.startDate);
+            const endDate = config.endDate ? new Date(config.endDate) : new Date(startDate.getTime() + 60 * 60 * 1000);
 
             const eventId = await Calendar.createEventAsync(calendarId, {
-                title: `🐾 ${title}`,
+                title: `🐾 ${config.title}`,
                 startDate,
                 endDate,
-                notes: notes,
-                timeZone: 'Europe/Berlin', // Should ideally be user's timezone
+                location: config.location,
+                notes: config.notes,
+                timeZone: 'Europe/Berlin',
             });
 
             return eventId;
