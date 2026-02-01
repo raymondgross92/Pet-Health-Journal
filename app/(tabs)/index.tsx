@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, StatusBar } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, StatusBar, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -36,7 +36,7 @@ export default function DashboardScreen() {
                 setLowStock(stockResult);
 
                 const routines = await db.getAllAsync<any>(`
-                    SELECT routine_times.time, routines.title, routines.type, pets.name as pet_name 
+                    SELECT routine_times.time, routines.title, routines.type, routines.medication_id, routines.pet_id, pets.name as pet_name 
                     FROM routine_times 
                     JOIN routines ON routine_times.routine_id = routines.id 
                     LEFT JOIN pets ON routines.pet_id = pets.id
@@ -50,8 +50,10 @@ export default function DashboardScreen() {
                     title: r.title,
                     time: r.time,
                     subtitle: r.pet_name,
-                    icon: r.type === 'food' ? 'restaurant' : r.type === 'walk' ? 'walk' : 'time',
-                    color: r.type === 'food' ? '#f97316' : r.type === 'walk' ? '#22c55e' : '#64748b'
+                    icon: r.type === 'food' ? 'restaurant' : r.type === 'walk' ? 'walk' : r.type === 'medication' ? 'medkit' : 'time',
+                    color: r.type === 'food' ? '#f97316' : r.type === 'walk' ? '#22c55e' : r.type === 'medication' ? '#ef4444' : '#64748b',
+                    medication_id: r.medication_id,
+                    pet_id: r.pet_id
                 }));
                 setTodayTasks(tasks);
             }
@@ -60,6 +62,52 @@ export default function DashboardScreen() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const completeTask = async (task: any) => {
+        Alert.alert(
+            "Erledigen",
+            `Möchtest du "${task.title}" als erledigt markieren?`,
+            [
+                { text: "Abbrechen", style: "cancel" },
+                {
+                    text: "Erledigt ✅",
+                    onPress: async () => {
+                        try {
+                            const db = await getDb();
+
+                            // 1. Log entry
+                            await db.runAsync(
+                                'INSERT INTO logs (pet_id, title, description, date, type) VALUES (?, ?, ?, ?, ?)',
+                                [task.pet_id || null, task.title, 'Routine erledigt', new Date().toLocaleDateString('de-DE'), 'Routine']
+                            );
+
+                            // 2. Decrement Stock if Med
+                            if (task.medication_id) {
+                                // Get current stock
+                                const med = await db.getFirstAsync<any>('SELECT * FROM medications WHERE id = ?', task.medication_id);
+                                if (med) {
+                                    const newStock = med.stock - 1;
+                                    await db.runAsync('UPDATE medications SET stock = ? WHERE id = ?', [newStock, task.medication_id]);
+
+                                    // Alert if low
+                                    if (newStock <= (med.min_stock || 3)) {
+                                        Alert.alert("Achtung", `Vorrat für ${med.name} ist niedrig (${newStock} übrig)!`);
+                                    }
+                                }
+                            }
+
+                            // 3. Update UI (Remove from list)
+                            setTodayTasks(current => current.filter(t => t.id !== task.id));
+
+                        } catch (e) {
+                            console.error(e);
+                            Alert.alert("Fehler", "Konnte nicht gespeichert werden.");
+                        }
+                    }
+                }
+            ]
+        );
     };
 
     useFocusEffect(
@@ -197,24 +245,28 @@ export default function DashboardScreen() {
                         ) : (
                             <View>
                                 {todayTasks.map((task, idx) => (
-                                    <Card key={idx} className="mb-4 flex-row items-center shadow-sm" padding="md" variant="elevated">
-                                        <View className="mr-5 items-center justify-center w-14">
-                                            <Text className={`font-bold text-lg ${theme === 'dark' ? 'text-primary-300' : 'text-primary-600'}`}>{task.time}</Text>
-                                        </View>
-
-                                        <View className="h-12 w-1 border-r border-slate-100 mr-5" />
-
-                                        <View className="flex-1">
-                                            <View className="flex-row items-center mb-1">
-                                                <View className={`h-6 w-6 rounded-full items-center justify-center mr-2`} style={{ backgroundColor: task.color + '20' }}>
-                                                    <Ionicons name={task.icon} size={14} color={task.color} />
-                                                </View>
-                                                <Text className={`font-bold text-xs uppercase tracking-wide ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>{task.type}</Text>
+                                    <TouchableOpacity key={idx} onPress={() => completeTask(task)}>
+                                        <Card className="mb-4 flex-row items-center shadow-sm" padding="md" variant="elevated">
+                                            <View className="mr-5 items-center justify-center w-14">
+                                                <Text className={`font-bold text-lg ${theme === 'dark' ? 'text-primary-300' : 'text-primary-600'}`}>{task.time}</Text>
                                             </View>
-                                            <Text className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{task.title}</Text>
-                                            <Text className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>{task.subtitle}</Text>
-                                        </View>
-                                    </Card>
+
+                                            <View className="h-12 w-1 border-r border-slate-100 mr-5" />
+
+                                            <View className="flex-1">
+                                                <View className="flex-row items-center mb-1">
+                                                    <View className={`h-6 w-6 rounded-full items-center justify-center mr-2`} style={{ backgroundColor: task.color + '20' }}>
+                                                        <Ionicons name={task.icon} size={14} color={task.color} />
+                                                    </View>
+                                                    <Text className={`font-bold text-xs uppercase tracking-wide ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>{task.type}</Text>
+                                                </View>
+                                                <Text className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{task.title}</Text>
+                                                <Text className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>{task.subtitle}</Text>
+                                            </View>
+
+                                            <Ionicons name="radio-button-off" size={24} color={theme === 'dark' ? '#475569' : '#cbd5e1'} />
+                                        </Card>
+                                    </TouchableOpacity>
                                 ))}
                             </View>
                         )}

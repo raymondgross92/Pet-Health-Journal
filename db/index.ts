@@ -177,6 +177,36 @@ export async function initDatabase() {
     // Column likely exists (or validation error if strict)
   }
 
+  try {
+    // Add medication_id to routines for stock tracking
+    await db.runAsync('ALTER TABLE routines ADD COLUMN medication_id INTEGER REFERENCES medications(id) ON DELETE SET NULL');
+  } catch (e) {
+    // Column likely exists
+  }
+
+  // Food Journal Tables
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS foods (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      brand TEXT,
+      type TEXT, 
+      calories_per_100g REAL,
+      ingredients TEXT,
+      notes TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS food_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      pet_id INTEGER NOT NULL REFERENCES pets(id) ON DELETE CASCADE,
+      food_id INTEGER NOT NULL REFERENCES foods(id) ON DELETE CASCADE,
+      amount_grams REAL,
+      date TEXT NOT NULL,
+      time TEXT NOT NULL,
+      notes TEXT
+    );
+  `);
+
   return db;
 }
 

@@ -17,23 +17,30 @@ export default function AddRoutineScreen() {
 
     const [title, setTitle] = useState('');
     const [times, setTimes] = useState<Date[]>([new Date()]);
-    const [type, setType] = useState('food'); // food, walk, hygiene, other
+    const [type, setType] = useState('food'); // food, walk, hygiene, medication, other
     const [loading, setLoading] = useState(false);
 
+    // Medications support
+    const [meds, setMeds] = useState<any[]>([]);
+    const [selectedMedId, setSelectedMedId] = useState<number | null>(null);
+
     useEffect(() => {
-        loadPets();
+        loadData();
         // Initialize default time to 08:00
         const d = new Date();
         d.setHours(8, 0, 0, 0);
         setTimes([d]);
     }, []);
 
-    const loadPets = async () => {
+    const loadData = async () => {
         try {
             const db = await getDb();
-            const result = await db.getAllAsync<Pet>('SELECT * FROM pets ORDER BY name ASC');
-            setPets(result);
-            if (result.length > 0) setSelectedPetIds([result[0].id]);
+            const petsResult = await db.getAllAsync<Pet>('SELECT * FROM pets ORDER BY name ASC');
+            setPets(petsResult);
+            if (petsResult.length > 0) setSelectedPetIds([petsResult[0].id]);
+
+            const medsResult = await db.getAllAsync<any>('SELECT * FROM medications ORDER BY name ASC');
+            setMeds(medsResult);
         } catch (e) {
             console.error(e);
         }
@@ -41,7 +48,6 @@ export default function AddRoutineScreen() {
 
     const togglePet = (id: number) => {
         if (selectedPetIds.includes(id)) {
-            // Prevent deselecting the last one? Or allow empty? Better allow but validation in save
             setSelectedPetIds(selectedPetIds.filter(pid => pid !== id));
         } else {
             setSelectedPetIds([...selectedPetIds, id]);
@@ -84,8 +90,8 @@ export default function AddRoutineScreen() {
             for (const selectedPetId of selectedPetIds) {
                 // Insert Routine (Daily by default)
                 const result = await db.runAsync(
-                    'INSERT INTO routines (pet_id, title, type, frequency, enabled) VALUES (?, ?, ?, ?, 1)',
-                    selectedPetId, title, type, 'daily'
+                    'INSERT INTO routines (pet_id, title, type, frequency, enabled, medication_id) VALUES (?, ?, ?, ?, 1, ?)',
+                    selectedPetId, title, type, 'daily', (type === 'medication' ? selectedMedId : null)
                 );
 
                 const routineId = result.lastInsertRowId;
@@ -130,7 +136,13 @@ export default function AddRoutineScreen() {
 
     const RoutineType = ({ id, label, icon, color }: any) => (
         <TouchableOpacity
-            onPress={() => { setType(id); setTitle(label); }}
+            onPress={() => {
+                setType(id);
+                if (id === 'medication') setTitle('Medikament geben');
+                else if (id === 'food') setTitle('Füttern');
+                else if (id === 'walk') setTitle('Gassi Runde');
+                else setTitle('');
+            }}
             className={`flex-1 p-4 rounded-2xl border items-center mr-2 mb-2 ${type === id ? 'bg-primary-50 border-primary-500' : 'bg-white border-secondary-100'}`}
         >
             <Ionicons name={icon} size={24} color={type === id ? color : '#94a3b8'} />
@@ -175,8 +187,31 @@ export default function AddRoutineScreen() {
                 </View>
                 <View className="flex-row flex-wrap mb-6">
                     <RoutineType id="hygiene" label="Hygiene" icon="water" color="#3b82f6" />
+                    <RoutineType id="medication" label="Medikament" icon="medkit" color="#ef4444" />
                     <RoutineType id="other" label="Sonstiges" icon="time" color="#f59e0b" />
                 </View>
+
+                {/* Medication Dropdown */}
+                {type === 'medication' && (
+                    <View className="mb-6">
+                        <Text className="text-secondary-900 font-bold mb-2 font-sans">Welches Medikament?</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-2">
+                            {meds.map(med => (
+                                <TouchableOpacity
+                                    key={med.id}
+                                    onPress={() => {
+                                        setSelectedMedId(med.id);
+                                        setTitle(`${med.name} geben`);
+                                    }}
+                                    className={`mr-3 p-3 rounded-xl border ${selectedMedId === med.id ? 'bg-red-50 border-red-500' : 'bg-white border-secondary-200'}`}
+                                >
+                                    <Text className={`font-bold ${selectedMedId === med.id ? 'text-red-700' : 'text-secondary-700'}`}>{med.name}</Text>
+                                    <Text className="text-xs text-secondary-500">Vorrat: {med.stock}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    </View>
+                )}
 
                 <View className="bg-white p-4 rounded-2xl border border-secondary-100 mb-6 shadow-sm">
                     <Input

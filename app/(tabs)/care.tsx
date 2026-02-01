@@ -172,6 +172,12 @@ export default function CareScreen() {
                     >
                         <Ionicons name="wallet" size={20} color="#16a34a" />
                     </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={() => router.push('/food')}
+                        className="h-10 w-10 bg-amber-100 rounded-full items-center justify-center active:bg-amber-200"
+                    >
+                        <Ionicons name="restaurant" size={20} color="#d97706" />
+                    </TouchableOpacity>
                 </View>
             </View>
 

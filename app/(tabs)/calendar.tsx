@@ -1,216 +1,160 @@
-import { View, Text, TouchableOpacity, Alert, FlatList } from 'react-native';
-import { Calendar, LocaleConfig } from 'react-native-calendars';
-import { useFocusEffect } from 'expo-router';
-import { useState, useCallback, useMemo } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useState, useCallback } from 'react';
 import { useTheme } from '../../context/ThemeContext';
-import { useLanguage } from '../../context/LanguageContext';
 import { getDb } from '../../db';
-
-// Locale Setup (Outside Component)
-LocaleConfig.locales['de'] = {
-    monthNames: ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'],
-    monthNamesShort: ['Jan.', 'Feb.', 'März', 'Apr.', 'Mai', 'Jun.', 'Jul.', 'Aug.', 'Sept.', 'Okt.', 'Nov.', 'Dez.'],
-    dayNames: ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'],
-    dayNamesShort: ['So.', 'Mo.', 'Di.', 'Mi.', 'Do.', 'Fr.', 'Sa.'],
-    today: "Heute"
-};
-LocaleConfig.locales['en'] = {
-    monthNames: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
-    monthNamesShort: ['Jan.', 'Feb.', 'Mar.', 'Apr.', 'May', 'Jun.', 'Jul.', 'Aug.', 'Sep.', 'Oct.', 'Nov.', 'Dec.'],
-    dayNames: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
-    dayNamesShort: ['Sun.', 'Mon.', 'Tue.', 'Wed.', 'Thu.', 'Fri.', 'Sat.'],
-    today: "Today"
-};
-
-interface AgendaItem {
-    id: string; // Unique ID for key
-    name: string;
-    type: 'routine' | 'log' | 'Termin';
-    time?: string;
-    details?: string;
-    color?: string;
-    date: string; // YYYY-MM-DD
-}
+import Card from '../../components/ui/Card';
 
 export default function CalendarScreen() {
+    const router = useRouter();
     const { theme } = useTheme();
-    const { language, t } = useLanguage();
+    const [events, setEvents] = useState<any[]>([]);
+    const [refreshing, setRefreshing] = useState(false);
 
-    // States
-    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-    const [allItems, setAllItems] = useState<AgendaItem[]>([]);
-    const [markedDates, setMarkedDates] = useState<any>({});
-
-    // Load Data
-    const loadData = useCallback(async () => {
+    const loadData = async () => {
         try {
             const db = await getDb();
-            const now = new Date();
-            const items: AgendaItem[] = [];
-            const marks: any = {};
+            const allEvents = [];
 
-            // 1. Routines (Next 30 days)
-            const routines = await db.getAllAsync<any>('SELECT * FROM routines');
-            for (let i = 0; i < 30; i++) {
-                const d = new Date();
-                d.setDate(now.getDate() + i);
-                const dateStr = d.toISOString().split('T')[0];
+            // 1. Appointments (Future only for now? Or all? Let's show future)
+            const appointments = await db.getAllAsync<any>(`
+                SELECT appointments.*, pets.name as pet_name 
+                FROM appointments 
+                LEFT JOIN pets ON appointments.pet_id = pets.id
+                WHERE date >= date('now')
+                ORDER BY date ASC
+            `);
+            appointments.forEach(a => allEvents.push({
+                id: `apt-${a.id}`,
+                date: a.date,
+                title: a.reason || 'Tierarzt Termin',
+                subtitle: `${a.pet_name} • ${a.doctor_name || 'Unbekannter Arzt'}`,
+                type: 'appointment',
+                time: a.time,
+                color: '#6d28d9', // purple
+                icon: 'medical'
+            }));
 
-                routines.forEach((r, idx) => {
-                    items.push({
-                        id: `routine-${dateStr}-${r.id}-${idx}`,
-                        name: r.title,
-                        type: 'routine',
-                        time: r.time_of_day,
-                        date: dateStr,
-                        color: theme === 'dark' ? '#1e293b' : '#f1f5f9'
-                    });
-                    // Mark date
-                    if (!marks[dateStr]) marks[dateStr] = { dots: [] };
-                    if (!marks[dateStr].dots.find((dot: any) => dot.color === '#94a3b8')) {
-                        marks[dateStr].dots.push({ color: '#94a3b8' });
-                    }
-                });
-            }
+            // 2. Vaccinations (Next Due)
+            const vaccinations = await db.getAllAsync<any>(`
+                SELECT vaccinations.*, pets.name as pet_name 
+                FROM vaccinations 
+                LEFT JOIN pets ON vaccinations.pet_id = pets.id
+                WHERE next_due IS NOT NULL AND next_due >= date('now')
+                ORDER BY next_due ASC
+            `);
+            vaccinations.forEach(v => allEvents.push({
+                id: `vac-${v.id}`,
+                date: v.next_due,
+                title: `Impfung: ${v.name}`,
+                subtitle: v.pet_name,
+                type: 'vaccination',
+                time: '09:00', // Default time for due dates
+                color: '#2563eb', // blue
+                icon: 'shield-checkmark'
+            }));
 
-            // 2. Logs (Historical & Future)
-            const logs = await db.getAllAsync<any>('SELECT * FROM logs');
-            logs.forEach(l => {
-                const parts = l.date.split('.');
-                if (parts.length === 3) {
-                    const isoDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
-                    items.push({
-                        id: `log-${l.id}`,
-                        name: l.title,
-                        type: 'log',
-                        details: l.description,
-                        date: isoDate,
-                        color: theme === 'dark' ? '#312e81' : '#e0e7ff'
-                    });
+            // 3. Routines (Generated for next 7 days maybe? Or just generic "Daily")
+            // Showing daily routines in a monthly calendar is cluttered. 
+            // Let's just show "One-time" routines if we had them, or just skip daily routines here.
+            // User requested "Calendar", usually implies Appointments/Events, not daily tasks (that's Dashboard).
+            // Let's stick to Appointments and Vaccinations for now, maybe add "Reminders" later.
 
-                    if (!marks[isoDate]) marks[isoDate] = { dots: [] };
-                    if (!marks[isoDate].dots.find((dot: any) => dot.color === '#6366f1')) {
-                        marks[isoDate].dots.push({ color: '#6366f1' });
-                    }
-                }
+            // Sort by Date then Time
+            allEvents.sort((a, b) => {
+                const dateA = new Date(a.date + 'T' + (a.time || '00:00'));
+                const dateB = new Date(b.date + 'T' + (b.time || '00:00'));
+                return dateA.getTime() - dateB.getTime();
             });
 
-            setAllItems(items);
-            setMarkedDates(marks);
+            // Group by Month
+            const groupedArgs = allEvents.reduce((acc, event) => {
+                const date = new Date(event.date);
+                const month = date.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+                if (!acc[month]) acc[month] = [];
+                acc[month].push(event);
+                return acc;
+            }, {});
+
+            // Convert to array
+            const groupedArray = Object.keys(groupedArgs).map(month => ({
+                title: month,
+                data: groupedArgs[month]
+            }));
+
+            setEvents(groupedArray);
 
         } catch (e) {
             console.error(e);
         }
-    }, [theme]);
+    };
 
     useFocusEffect(
         useCallback(() => {
-            LocaleConfig.defaultLocale = language;
             loadData();
-        }, [language, loadData])
+        }, [])
     );
 
-    // Filter items for selected date
-    const selectedItems = useMemo(() => {
-        return allItems.filter(i => i.date === selectedDate);
-    }, [allItems, selectedDate]);
-
-    // Theme object memoized
-    const calendarTheme = useMemo(() => ({
-        calendarBackground: theme === 'dark' ? '#0f172a' : '#ffffff',
-        textSectionTitleColor: '#b6c1cd',
-        selectedDayBackgroundColor: '#059669',
-        selectedDayTextColor: '#ffffff',
-        todayTextColor: '#059669',
-        dayTextColor: theme === 'dark' ? '#e2e8f0' : '#2d4150',
-        textDisabledColor: '#d9e1e8',
-        dotColor: '#00adf5',
-        selectedDotColor: '#ffffff',
-        arrowColor: '#059669',
-        monthTextColor: theme === 'dark' ? '#e2e8f0' : '#2d4150',
-        indicatorColor: 'blue',
-    }), [theme]);
-
-    // Render list item
-    const renderItem = ({ item }: { item: AgendaItem }) => {
-        const isAppt = item.type === 'Termin';
-        return (
-            <TouchableOpacity
-                className={`mx-5 mb-3 p-4 rounded-xl border shadow-sm ${isAppt
-                    ? (theme === 'dark' ? 'bg-indigo-900 border-indigo-700' : 'bg-indigo-50 border-indigo-200')
-                    : (theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-secondary-100')
-                    }`}
-                style={!isAppt && item.color ? { backgroundColor: item.color, borderColor: item.color } : {}}
-                onPress={() => {
-                    if (item.type === 'log') {
-                        Alert.alert(item.name, item.details);
-                    } else if (item.type === 'routine') {
-                        Alert.alert(t('routines_title'), `${item.name} (${item.time})`);
-                    } else if (item.type === 'Termin') {
-                        Alert.alert(item.name, item.details || "Keine Notizen");
-                    }
-                }}
-            >
-                <View className="flex-row justify-between items-center">
-                    <View>
-                        <Text className={`font-bold font-sans ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>{item.name}</Text>
-                        <Text className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-secondary-500'}`}>
-                            {isAppt && item.time ? `${item.time} Uhr` : item.type}
-                        </Text>
-                        {item.details && !isAppt && <Text className="text-xs text-slate-500 mt-1" numberOfLines={1}>{item.details}</Text>}
-                    </View>
-                    {item.type === 'routine' && <Ionicons name="repeat" size={16} color="#94a3b8" />}
-                    {item.type === 'log' && <Ionicons name="medical" size={16} color="#6366f1" />}
-                    {isAppt && <Ionicons name="calendar" size={20} color="#8b5cf6" />}
-                </View>
-            </TouchableOpacity>
-        );
-    };
+    const onRefresh = useCallback(() => {
+        setRefreshing(true);
+        loadData().then(() => setRefreshing(false));
+    }, []);
 
     return (
-        <SafeAreaView className={`flex-1 ${theme === 'dark' ? 'bg-slate-950' : 'bg-white'}`} edges={['top']}>
-            <View className={`px-5 py-4 border-b flex-row justify-between items-center ${theme === 'dark' ? 'border-slate-800' : 'border-secondary-100'}`}>
+        <SafeAreaView className={`flex-1 ${theme === 'dark' ? 'bg-slate-950' : 'bg-secondary-50'}`}>
+            <View className={`px-5 py-4 border-b ${theme === 'dark' ? 'border-slate-800' : 'border-secondary-100'} flex-row justify-between items-center bg-white dark:bg-slate-950`}>
                 <Text className={`text-2xl font-bold font-sans ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>Kalender</Text>
-                <TouchableOpacity onPress={loadData} className={`p-2 rounded-full ${theme === 'dark' ? 'bg-slate-900' : 'bg-secondary-50'}`}>
-                    <Ionicons name="refresh" size={20} color={theme === 'dark' ? 'white' : 'black'} />
-                </TouchableOpacity>
             </View>
 
-            <Calendar
-                theme={calendarTheme}
-                onDayPress={(day: any) => setSelectedDate(day.dateString)}
-                markedDates={{
-                    ...markedDates,
-                    [selectedDate]: {
-                        ...(markedDates[selectedDate] || {}),
-                        selected: true,
-                        disableTouchEvent: true,
-                    }
-                }}
-                markingType={'multi-dot'}
-                enableSwipeMonths={true}
-            />
-
-            <View className="flex-1 pt-4 bg-transparent">
-                <Text className={`px-5 mb-2 text-xs font-bold uppercase ${theme === 'dark' ? 'text-slate-500' : 'text-secondary-500'}`}>
-                    {selectedDate.split('-').reverse().join('.')}
-                </Text>
-
-                {selectedItems.length === 0 ? (
-                    <View className="flex-1 items-center justify-center p-10">
-                        <Text className="text-slate-400 italic">Keine Einträge für diesen Tag.</Text>
+            <ScrollView
+                className="flex-1 px-5 pt-4"
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            >
+                {events.length === 0 ? (
+                    <View className="items-center justify-center py-20">
+                        <View className={`w-20 h-20 rounded-full items-center justify-center mb-4 ${theme === 'dark' ? 'bg-slate-800' : 'bg-slate-100'}`}>
+                            <Ionicons name="calendar-outline" size={32} color={theme === 'dark' ? '#94a3b8' : '#cbd5e1'} />
+                        </View>
+                        <Text className={`text-center font-bold text-lg ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Keine anstehenden Termine</Text>
+                        <Text className={`text-center text-sm mt-2 ${theme === 'dark' ? 'text-slate-600' : 'text-slate-400'}`}>Füge Tierarzt-Termine oder Impfungen hinzu.</Text>
                     </View>
                 ) : (
-                    <FlatList
-                        data={selectedItems}
-                        renderItem={renderItem}
-                        keyExtractor={item => item.id}
-                        contentContainerStyle={{ paddingBottom: 20 }}
-                    />
+                    events.map((group, groupIdx) => (
+                        <View key={groupIdx} className="mb-6">
+                            <Text className={`text-sm font-bold uppercase mb-3 tracking-wider ${theme === 'dark' ? 'text-primary-400' : 'text-primary-600'}`}>
+                                {group.title}
+                            </Text>
+                            {group.data.map((event: any, idx: number) => (
+                                <Card key={idx} className="mb-3 flex-row items-center" padding="md">
+                                    {/* Date Box */}
+                                    <View className={`items-center justify-center w-14 mr-4 rounded-xl py-2 ${theme === 'dark' ? 'bg-slate-800' : 'bg-slate-50'}`}>
+                                        <Text className={`text-xs font-bold uppercase ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                                            {new Date(event.date).toLocaleDateString('de-DE', { weekday: 'short' }).replace('.', '')}
+                                        </Text>
+                                        <Text className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                                            {new Date(event.date).getDate()}
+                                        </Text>
+                                    </View>
+
+                                    <View className="flex-1">
+                                        <View className="flex-row items-center mb-1">
+                                            <View className={`h-2 w-2 rounded-full mr-2`} style={{ backgroundColor: event.color }} />
+                                            <Text className={`text-xs font-bold uppercase ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                                                {event.type === 'appointment' ? 'Termin' : 'Impfung'} • {event.time}
+                                            </Text>
+                                        </View>
+                                        <Text className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{event.title}</Text>
+                                        <Text className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>{event.subtitle}</Text>
+                                    </View>
+                                </Card>
+                            ))}
+                        </View>
+                    ))
                 )}
-            </View>
+                <View className="h-10" />
+            </ScrollView>
         </SafeAreaView>
     );
 }

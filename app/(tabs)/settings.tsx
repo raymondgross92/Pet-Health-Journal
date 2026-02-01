@@ -5,12 +5,29 @@ import { useLanguage } from '../../context/LanguageContext';
 import { Ionicons } from '@expo/vector-icons';
 import { exportData, importData } from '../../lib/backup';
 import Constants from 'expo-constants';
+import { useAuth } from '../../context/AuthContext';
+import { useState } from 'react';
 
 export default function SettingsScreen() {
     const { theme, toggleTheme } = useTheme();
     const { language, setLanguage, t } = useLanguage();
+    const { isBiometricsEnabled, enableBiometrics, disableBiometrics } = useAuth();
+    const [biometricsLoading, setBiometricsLoading] = useState(false);
 
     const appVersion = Constants.expoConfig?.version || '1.0.0';
+
+    const toggleBiometrics = async (value: boolean) => {
+        setBiometricsLoading(true);
+        if (value) {
+            const success = await enableBiometrics();
+            if (!success) {
+                Alert.alert("Fehler", "Biometrie konnte nicht aktiviert werden oder ist nicht verfügbar.");
+            }
+        } else {
+            await disableBiometrics();
+        }
+        setBiometricsLoading(false);
+    };
 
     return (
         <SafeAreaView className={`flex-1 ${theme === 'dark' ? 'bg-slate-950' : 'bg-secondary-50'}`}>
@@ -32,6 +49,28 @@ export default function SettingsScreen() {
                             value={theme === 'dark'}
                             onValueChange={toggleTheme}
                             trackColor={{ false: '#e2e8f0', true: '#4f46e5' }}
+                        />
+                    </View>
+                </View>
+
+                {/* Security Section */}
+                <View className="mb-8">
+                    <Text className={`text-sm font-bold uppercase mb-3 ${theme === 'dark' ? 'text-slate-500' : 'text-secondary-500'}`}>Sicherheit</Text>
+                    <View className={`p-4 rounded-xl flex-row justify-between items-center ${theme === 'dark' ? 'bg-slate-900' : 'bg-white'}`}>
+                        <View className="flex-row items-center">
+                            <View className={`w-10 h-10 rounded-full items-center justify-center mr-3 ${theme === 'dark' ? 'bg-slate-800' : 'bg-green-100'}`}>
+                                <Ionicons name="finger-print" size={20} color={theme === 'dark' ? '#fff' : '#16a34a'} />
+                            </View>
+                            <View>
+                                <Text className={`text-lg font-medium ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>App Sperre</Text>
+                                <Text className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-secondary-500'}`}>FaceID / TouchID</Text>
+                            </View>
+                        </View>
+                        <Switch
+                            value={isBiometricsEnabled}
+                            onValueChange={toggleBiometrics}
+                            disabled={biometricsLoading}
+                            trackColor={{ false: '#e2e8f0', true: '#10b981' }}
                         />
                     </View>
                 </View>

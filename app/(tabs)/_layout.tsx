@@ -1,71 +1,66 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
-import '../../global.css';
+import { useTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../context/LanguageContext';
+import { Platform } from 'react-native';
 
 export default function TabLayout() {
+    const { theme } = useTheme();
+    const { t } = useLanguage();
+
     return (
         <Tabs
             screenOptions={{
                 headerShown: false,
                 tabBarStyle: {
-                    backgroundColor: '#ffffff',
-                    borderTopWidth: 1,
-                    borderTopColor: '#e2e8f0', // slate-200
-                    height: 60,
-                    paddingBottom: 5,
+                    backgroundColor: theme === 'dark' ? '#0c0a09' : '#ffffff',
+                    borderTopColor: theme === 'dark' ? '#1c1917' : '#e5e5e5',
+                    height: Platform.OS === 'ios' ? 88 : 60,
+                    paddingBottom: Platform.OS === 'ios' ? 28 : 8,
+                    paddingTop: 8,
                 },
-                tabBarActiveTintColor: '#059669', // primary-600
-                tabBarInactiveTintColor: '#64748b', // secondary-500
-            }}
-            screenListeners={{
-                tabPress: () => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                tabBarActiveTintColor: theme === 'dark' ? '#4ade80' : '#16a34a',
+                tabBarInactiveTintColor: theme === 'dark' ? '#78716c' : '#a8a29e',
+                tabBarLabelStyle: {
+                    fontFamily: 'System',
+                    fontSize: 12,
+                    fontWeight: '600',
                 },
             }}
         >
             <Tabs.Screen
                 name="index"
                 options={{
-                    title: 'Home',
+                    title: t('tab_home'),
                     tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="home-outline" size={size} color={color} />
+                        <Ionicons name="home" size={size} color={color} />
                     ),
                 }}
             />
             <Tabs.Screen
                 name="calendar"
                 options={{
-                    title: 'Kalender',
+                    title: "Kalender",
                     tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="calendar-outline" size={size} color={color} />
+                        <Ionicons name="calendar" size={size} color={color} />
                     ),
                 }}
             />
             <Tabs.Screen
                 name="care"
                 options={{
-                    title: 'Betreuung',
+                    title: t('tab_care'),
                     tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="medkit-outline" size={size} color={color} />
-                    ),
-                }}
-            />
-            <Tabs.Screen
-                name="pets"
-                options={{
-                    title: 'Pets',
-                    tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="paw-outline" size={size} color={color} />
+                        <Ionicons name="medkit" size={size} color={color} />
                     ),
                 }}
             />
             <Tabs.Screen
                 name="settings"
                 options={{
-                    title: 'Settings',
+                    title: t('tab_settings'),
                     tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="settings-outline" size={size} color={color} />
+                        <Ionicons name="settings" size={size} color={color} />
                     ),
                 }}
             />

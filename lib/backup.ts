@@ -12,7 +12,7 @@ export async function exportData() {
         const pets = await db.getAllAsync('SELECT * FROM pets');
         const logs = await db.getAllAsync('SELECT * FROM logs');
         const medications = await db.getAllAsync('SELECT * FROM medications');
-        const medication_times = await db.getAllAsync('SELECT * FROM medication_times');
+        const medication_times = await db.getAllAsync('SELECT * FROM medication_times'); // Legacy/Existing
         const documents = await db.getAllAsync('SELECT * FROM documents');
         const routines = await db.getAllAsync('SELECT * FROM routines');
         const routine_times = await db.getAllAsync('SELECT * FROM routine_times');
@@ -21,6 +21,10 @@ export async function exportData() {
         const vaccinations = await db.getAllAsync('SELECT * FROM vaccinations');
         const appointments = await db.getAllAsync('SELECT * FROM appointments');
         const symptoms = await db.getAllAsync('SELECT * FROM symptoms');
+
+        // New Tables
+        const foods = await db.getAllAsync('SELECT * FROM foods');
+        const food_logs = await db.getAllAsync('SELECT * FROM food_logs');
 
         const backupData = {
             version: 1,
@@ -37,7 +41,9 @@ export async function exportData() {
                 expenses,
                 vaccinations,
                 appointments,
-                symptoms
+                symptoms,
+                foods,
+                food_logs
             }
         };
 
@@ -99,23 +105,21 @@ async function performRestore(data: any) {
     try {
         const db = await getDb();
 
-        // Disable foreign keys temporarily if possible or delete in order
+        // 1. Clear Database
         // Order matters due to Foreign Keys: child tables first
         const tables = [
-            'symptoms', 'appointments', 'vaccinations', 'expenses',
+            'food_logs', 'symptoms', 'appointments', 'vaccinations', 'expenses',
             'routine_times', 'medication_times', 'documents',
-            'medications', 'logs', 'routines', 'vets', 'pets'
+            'foods', 'medications', 'logs', 'routines', 'vets', 'pets'
         ];
 
-        // 1. Clear Database
         for (const table of tables) {
             await db.runAsync(`DELETE FROM ${table}`);
-            // Reset autoincrement
             await db.runAsync(`DELETE FROM sqlite_sequence WHERE name='${table}'`);
         }
 
         // 2. Insert Data
-        // Order reversed: parent tables first
+
         // Pets
         for (const p of data.pets || []) {
             await db.runAsync(
@@ -140,6 +144,14 @@ async function performRestore(data: any) {
             );
         }
 
+        // Foods (New)
+        for (const f of data.foods || []) {
+            await db.runAsync(
+                `INSERT INTO foods (id, name, brand, type, calories_per_100g, ingredients, notes) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [f.id, f.name, f.brand, f.type, f.calories_per_100g, f.ingredients, f.notes]
+            );
+        }
+
         // Logs
         for (const l of data.logs || []) {
             await db.runAsync(
@@ -158,25 +170,27 @@ async function performRestore(data: any) {
 
         // Routines
         for (const r of data.routines || []) {
+            // Check if column medication_id exists in backup, else null
+            const medId = r.medication_id || null;
             await db.runAsync(
-                `INSERT INTO routines (id, pet_id, title, type, time, frequency, date, enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-                [r.id, r.pet_id, r.title, r.type, r.time, r.frequency, r.date, r.enabled]
+                `INSERT INTO routines (id, pet_id, title, type, frequency, enabled, medication_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [r.id, r.pet_id, r.title, r.type, r.frequency, r.enabled, medId]
             );
         }
 
-        // Medication Times
-        for (const mt of data.medication_times || []) {
-            await db.runAsync(
-                `INSERT INTO medication_times (id, medication_id, time) VALUES (?, ?, ?)`,
-                [mt.id, mt.medication_id, mt.time]
-            );
-        }
-
-        // Routine Times
+        // Routine Times (Many-to-One with Routines)
         for (const rt of data.routine_times || []) {
             await db.runAsync(
                 `INSERT INTO routine_times (id, routine_id, time) VALUES (?, ?, ?)`,
                 [rt.id, rt.routine_id, rt.time]
+            );
+        }
+
+        // Medication Times (Legacy?)
+        for (const mt of data.medication_times || []) {
+            await db.runAsync(
+                `INSERT INTO medication_times (id, medication_id, time) VALUES (?, ?, ?)`,
+                [mt.id, mt.medication_id, mt.time]
             );
         }
 
@@ -212,10 +226,18 @@ async function performRestore(data: any) {
             );
         }
 
+        // Food Logs (New)
+        for (const fl of data.food_logs || []) {
+            await db.runAsync(
+                `INSERT INTO food_logs (id, pet_id, food_id, amount_grams, date, time, notes) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [fl.id, fl.pet_id, fl.food_id, fl.amount_grams, fl.date, fl.time, fl.notes]
+            );
+        }
+
         Alert.alert("Erfolg", "Backup erfolgreich wiederhergestellt! Bitte App neu starten.");
 
     } catch (e) {
         console.error(e);
-        Alert.alert("Fehler", "Daten konnten nicht in die Datenbank geschrieben werden.");
+        Alert.alert("Fehler", "Daten konnten nicht in die Datenbank geschrieben werden: " + (e as Error).message);
     }
 }

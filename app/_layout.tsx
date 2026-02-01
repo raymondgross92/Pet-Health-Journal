@@ -51,10 +51,18 @@ export default function RootLayout() {
         return null;
     }
 
+    import { AuthProvider } from "../context/AuthContext";
+    import LockScreen from "../components/LockScreen";
+
+    // ... existing imports
+
     return (
         <LanguageProvider>
             <ThemeProvider>
-                <AppNavigator />
+                <AuthProvider>
+                    <LockScreen />
+                    <AppNavigator />
+                </AuthProvider>
             </ThemeProvider>
         </LanguageProvider>
     );
