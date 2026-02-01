@@ -408,7 +408,19 @@ export default function PetDetailScreen() {
                             <Text className={`text-xs ${theme === 'dark' ? 'text-secondary-400' : 'text-secondary-500'}`}>Impfungen verwalten</Text>
                         </TouchableOpacity>
 
-                        {/* 2. Symptome */}
+                        {/* 2. Termine (Neu) */}
+                        <TouchableOpacity
+                            onPress={() => router.push({ pathname: '/pet/[id]/appointments', params: { id } })}
+                            className={`w-[48%] mb-4 p-4 rounded-3xl ${theme === 'dark' ? 'bg-secondary-900' : 'bg-white shadow-sm shadow-stone-200'} border ${theme === 'dark' ? 'border-secondary-800' : 'border-secondary-100'}`}
+                        >
+                            <View className={`h-12 w-12 rounded-full items-center justify-center mb-3 ${theme === 'dark' ? 'bg-purple-900/30' : 'bg-purple-100'}`}>
+                                <Ionicons name="calendar" size={24} color={theme === 'dark' ? '#c084fc' : '#9333ea'} />
+                            </View>
+                            <Text className={`font-bold text-base ${theme === 'dark' ? 'text-white' : 'text-secondary-900'}`}>Termine</Text>
+                            <Text className={`text-xs ${theme === 'dark' ? 'text-secondary-400' : 'text-secondary-500'}`}>Besuche & Planung</Text>
+                        </TouchableOpacity>
+
+                        {/* 3. Symptome */}
                         <TouchableOpacity
                             onPress={() => router.push({ pathname: '/pet/[id]/symptoms', params: { id } })}
                             className={`w-[48%] mb-4 p-4 rounded-3xl ${theme === 'dark' ? 'bg-secondary-900' : 'bg-white shadow-sm shadow-stone-200'} border ${theme === 'dark' ? 'border-secondary-800' : 'border-secondary-100'}`}
